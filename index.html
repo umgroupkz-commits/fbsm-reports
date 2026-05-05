@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>FBSM — Чек-лист управляющего</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@300;400;500;600;700;800&display=swap');
+  :root {
+    --blue:#1F4E79; --blue-mid:#2E75B6; --blue-light:#D6E4F0;
+    --green:#1D6F42; --green-light:#E2EFDA;
+    --orange:#C55A11; --orange-light:#FCE4D6;
+    --red:#C00000; --red-light:#FCE4D6;
+    --purple:#5B3F8C; --purple-light:#EDE7F6;
+    --gray-100:#F7F8FA; --gray-200:#ECEEF2; --gray-400:#B0B8C8; --gray-600:#6B7A94;
+    --dark:#0F1923; --white:#FFFFFF;
+    --radius:12px; --shadow:0 2px 16px rgba(15,25,35,.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Manrope',sans-serif;background:var(--gray-100);color:var(--dark);min-height:100vh;padding-bottom:84px;}
+
+  .topbar{background:var(--blue);padding:0 16px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.25);}
+  .topbar-logo{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:white;}
+  .topbar-sub{font-size:10px;color:rgba(255,255,255,.65);font-weight:600;letter-spacing:.5px;text-transform:uppercase;}
+  .topbar-right{text-align:right;}
+  .topbar-date{font-size:12px;font-weight:700;color:rgba(255,255,255,.9);}
+  .topbar-sync{font-size:10px;color:rgba(255,255,255,.55);margin-top:2px;}
+
+  .tabs{display:flex;background:var(--white);border-bottom:2px solid var(--gray-200);position:sticky;top:56px;z-index:90;}
+  .tab{flex:1;padding:11px 4px;text-align:center;font-size:11px;font-weight:700;color:var(--gray-600);border:none;background:none;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;text-transform:uppercase;letter-spacing:.4px;transition:all .2s;}
+  .tab.active{color:var(--blue);border-bottom-color:var(--blue);}
+
+  .content{padding:14px;max-width:600px;margin:0 auto;}
+
+  .card{background:var(--white);border-radius:var(--radius);padding:14px;margin-bottom:14px;box-shadow:var(--shadow);}
+  .card-blue{border-left:4px solid var(--blue);}
+  .card-orange{border-left:4px solid var(--orange);}
+
+  .field-label{font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+  .field-input{width:100%;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:'Manrope',sans-serif;font-size:14px;font-weight:600;color:var(--dark);background:var(--gray-100);outline:none;transition:border-color .2s;}
+  .field-input:focus{border-color:var(--blue-mid);background:white;}
+  .field-input[readonly]{background:#f0f4f8;color:var(--gray-600);}
+  select.field-input{cursor:pointer;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+  .full{grid-column:1/-1;}
+
+  /* MONTH */
+  .month-card{background:var(--white);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px;box-shadow:var(--shadow);border-left:4px solid var(--orange);}
+  .month-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;}
+  .month-name{font-size:11px;font-weight:800;color:var(--gray-600);text-transform:uppercase;letter-spacing:.5px;}
+  .month-store-nm{font-size:13px;font-weight:700;color:var(--dark);margin-top:2px;}
+  .month-pct-big{font-size:36px;font-weight:900;line-height:1;}
+  .bar-bg{background:var(--gray-200);border-radius:8px;height:12px;overflow:hidden;margin-bottom:8px;}
+  .bar-fill{height:100%;border-radius:8px;transition:width .7s cubic-bezier(.4,0,.2,1);}
+  .month-row{display:flex;justify-content:space-between;font-size:12px;font-weight:600;}
+  .month-days-str{font-size:11px;color:var(--gray-400);margin-top:4px;text-align:right;}
+  .sync-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;margin-top:6px;}
+  .sync-badge.ok{background:var(--green-light);color:var(--green);}
+  .sync-badge.loading{background:#FFF8E1;color:#B07D00;}
+  .sync-badge.offline{background:var(--gray-200);color:var(--gray-600);}
+  .sync-dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+
+  /* METRICS */
+  .metrics-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
+  .metric-card{background:var(--white);border-radius:var(--radius);padding:11px;box-shadow:var(--shadow);text-align:center;}
+  .metric-label{font-size:10px;font-weight:700;color:var(--gray-600);text-transform:uppercase;letter-spacing:.4px;}
+  .metric-value{font-size:19px;font-weight:800;color:var(--blue);margin-top:2px;}
+
+  /* STAFF BLOCK */
+  .staff-block{background:var(--white);border-radius:var(--radius);padding:14px;margin-bottom:14px;box-shadow:var(--shadow);border-left:4px solid var(--purple);}
+  .staff-top{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+  .staff-icon{font-size:22px;}
+  .staff-title{font-size:13px;font-weight:800;flex:1;}
+  .staff-count-wrap{display:flex;align-items:center;gap:8px;}
+  .count-btn{width:32px;height:32px;border:none;border-radius:8px;background:var(--gray-200);font-size:18px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--dark);transition:background .15s;}
+  .count-btn:active{background:var(--blue);color:white;}
+  .count-num{font-size:26px;font-weight:900;color:var(--purple);min-width:36px;text-align:center;}
+
+  /* TASKS BLOCK */
+  .tasks-block{background:var(--white);border-radius:var(--radius);padding:14px;margin-bottom:14px;box-shadow:var(--shadow);border-left:4px solid var(--blue-mid);}
+  .tasks-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+  .tasks-icon{font-size:20px;}
+  .tasks-title{font-size:13px;font-weight:800;flex:1;}
+  .tasks-badge{background:var(--blue-light);color:var(--blue);font-size:11px;font-weight:800;padding:2px 10px;border-radius:20px;}
+  .task-item{border:1.5px solid var(--gray-200);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:var(--gray-100);transition:background .15s;}
+  .task-item.done-task{background:var(--green-light);border-color:#A8D5B5;}
+  .task-top-row{display:flex;align-items:flex-start;gap:8px;}
+  .task-check{width:22px;height:22px;border-radius:6px;border:2px solid var(--gray-400);background:white;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;margin-top:1px;}
+  .task-check.done{background:var(--green);border-color:var(--green);}
+  .task-check.done::after{content:'✓';color:white;font-size:13px;font-weight:900;}
+  .task-text-input{flex:1;border:none;background:transparent;font-family:'Manrope',sans-serif;font-size:13px;font-weight:600;color:var(--dark);outline:none;padding:2px 0;}
+  .task-text-input::placeholder{color:var(--gray-400);font-style:italic;}
+  .task-item.done-task .task-text-input{color:var(--green);text-decoration:line-through;}
+  .task-remove{background:none;border:none;color:var(--gray-400);font-size:14px;cursor:pointer;padding:2px 4px;flex-shrink:0;}
+  .task-result-wrap{margin-top:6px;margin-left:30px;}
+  .task-result-label{font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;}
+  .task-result-input{width:100%;border:none;border-bottom:1px dashed var(--gray-400);background:transparent;font-family:'Manrope',sans-serif;font-size:12px;color:var(--dark);outline:none;padding:3px 0;}
+  .task-result-input::placeholder{color:var(--gray-400);font-style:italic;}
+
+  /* RETURNS */
+  .returns-block{background:var(--white);border-radius:var(--radius);padding:14px;margin-bottom:14px;box-shadow:var(--shadow);border-left:4px solid var(--red);}
+  .block-toggle{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;}
+  .block-toggle-label{font-size:13px;font-weight:800;flex:1;}
+  .block-count{font-size:12px;font-weight:800;padding:2px 10px;border-radius:20px;}
+  .ret-count{background:var(--red-light);color:var(--red);}
+  .block-chev{color:var(--gray-400);transition:transform .2s;font-size:13px;}
+  .block-body{margin-top:12px;display:none;}
+  .block-body.open{display:block;}
+  .return-item{border:1.5px solid var(--gray-200);border-radius:10px;padding:12px;margin-bottom:10px;background:var(--gray-100);}
+  .return-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .return-num{font-size:12px;font-weight:800;color:var(--red);}
+  .btn-remove{background:none;border:none;color:var(--gray-400);font-size:16px;cursor:pointer;padding:2px 6px;}
+
+  /* SECTIONS */
+  .section{margin-bottom:10px;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);}
+  .section-header{display:flex;align-items:center;gap:8px;padding:12px 14px;cursor:pointer;user-select:none;}
+  .section-icon{font-size:16px;}
+  .section-title{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;flex:1;color:white;}
+  .section-badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:rgba(255,255,255,.25);color:white;}
+  .section-chevron{font-size:13px;color:rgba(255,255,255,.7);transition:transform .2s;}
+  .section-chevron.open{transform:rotate(180deg);}
+  .prog-bg{background:rgba(255,255,255,.2);border-radius:20px;height:3px;margin-top:6px;overflow:hidden;}
+  .prog-fill{height:100%;background:white;border-radius:20px;transition:width .4s;}
+  .section-body{background:var(--white);}
+  .check-item{padding:11px 14px;border-bottom:1px solid var(--gray-200);}
+  .check-item:last-child{border-bottom:none;}
+  .check-item.done{background:#F6FBF7;}
+  .check-top{display:flex;align-items:flex-start;gap:9px;margin-bottom:5px;}
+  .check-box{width:22px;height:22px;border-radius:6px;border:2px solid var(--gray-400);background:white;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;margin-top:1px;}
+  .check-box.checked{background:var(--green);border-color:var(--green);}
+  .check-box.checked::after{content:'✓';color:white;font-size:13px;font-weight:900;}
+  .check-num{font-size:11px;font-weight:800;color:var(--gray-400);min-width:16px;margin-top:3px;}
+  .check-text{font-size:13px;font-weight:600;line-height:1.4;flex:1;color:var(--dark);}
+  .check-item.done .check-text{color:var(--gray-600);}
+  .check-note{width:100%;padding:7px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:'Manrope',sans-serif;font-size:12px;font-weight:500;color:var(--dark);background:var(--gray-100);outline:none;resize:none;min-height:32px;max-height:80px;margin-left:47px;transition:border-color .2s;}
+  .check-note:focus{border-color:var(--blue-mid);background:white;min-height:50px;}
+  .check-note::placeholder{color:var(--gray-400);font-style:italic;}
+
+  /* BOTTOM */
+  .bottom-bar{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid var(--gray-200);padding:10px 14px;display:flex;gap:10px;z-index:100;box-shadow:0 -4px 20px rgba(0,0,0,.08);}
+  .btn{flex:1;padding:13px;border:none;border-radius:10px;font-family:'Manrope',sans-serif;font-size:13px;font-weight:800;cursor:pointer;text-transform:uppercase;letter-spacing:.5px;transition:all .15s;}
+  .btn:active{transform:scale(.97);}
+  .btn-primary{background:var(--blue);color:white;}
+  .btn-primary:hover{background:var(--blue-mid);}
+  .btn-primary:disabled{background:var(--gray-400);cursor:not-allowed;}
+  .btn-secondary{background:var(--gray-200);color:var(--dark);flex:0 0 auto;padding:13px 16px;}
+  .btn-sm{padding:8px 14px;font-size:12px;border-radius:8px;flex:none;}
+  .btn-outline{background:none;border:1.5px solid var(--gray-200);color:var(--gray-600);border-radius:8px;padding:8px 14px;font-family:'Manrope',sans-serif;font-size:12px;font-weight:700;cursor:pointer;width:100%;}
+
+  /* REPORT */
+  .summary-card{background:var(--white);border-radius:var(--radius);padding:14px;margin-bottom:12px;box-shadow:var(--shadow);}
+  .summary-title{font-size:11px;font-weight:800;color:var(--gray-600);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--gray-200);}
+  .srow{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--gray-100);font-size:13px;}
+  .srow:last-child{border-bottom:none;}
+  .skey{color:var(--gray-600);font-weight:500;flex:1;}
+  .sval{font-weight:700;color:var(--dark);}
+  .cli-item{padding:7px 0;border-bottom:1px solid var(--gray-100);}
+  .cli-item:last-child{border-bottom:none;}
+  .cli-top{display:flex;gap:7px;align-items:flex-start;}
+  .cli-text{font-size:12px;font-weight:700;color:var(--dark);flex:1;}
+  .cli-note{font-size:12px;color:var(--blue-mid);margin-top:2px;margin-left:20px;font-style:italic;}
+  .big-metric{display:flex;align-items:center;gap:12px;padding:12px;border-radius:10px;margin-bottom:8px;}
+  .big-metric.good{background:var(--green-light);}
+  .big-metric.warn{background:#FFF8E1;}
+  .big-metric.bad{background:var(--red-light);}
+  .bm-val{font-size:36px;font-weight:900;}
+  .big-metric.good .bm-val{color:var(--green);}
+  .big-metric.warn .bm-val{color:#E6A817;}
+  .big-metric.bad  .bm-val{color:var(--red);}
+  .bm-label{font-size:11px;font-weight:700;color:var(--gray-600);text-transform:uppercase;}
+  .bm-sub{font-size:11px;color:var(--gray-400);}
+  .task-report-item{padding:7px 0;border-bottom:1px solid var(--gray-100);}
+  .task-report-item:last-child{border-bottom:none;}
+  .task-report-status{font-size:13px;margin-right:6px;}
+  .task-report-text{font-size:12px;font-weight:700;}
+  .task-report-result{font-size:12px;color:var(--green);margin-top:2px;margin-left:19px;font-style:italic;}
+
+  /* HISTORY */
+  .hist-header{background:var(--blue);color:white;border-radius:var(--radius);padding:14px;margin-bottom:10px;}
+  .hist-header-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;opacity:.7;}
+  .hist-header-vals{display:flex;justify-content:space-between;align-items:flex-end;margin-top:6px;}
+  .hist-rev{font-size:24px;font-weight:900;}
+  .hist-pct{font-size:15px;font-weight:800;}
+  .hist-meta{font-size:11px;opacity:.6;margin-top:2px;}
+  .hist-item{background:white;border-radius:var(--radius);padding:11px 14px;margin-bottom:8px;box-shadow:var(--shadow);}
+  .hist-date{font-size:12px;font-weight:700;color:var(--gray-600);margin-bottom:5px;}
+  .hist-bar-bg{background:var(--gray-200);border-radius:4px;height:8px;}
+  .hist-bar-fill{height:100%;border-radius:4px;}
+  .hist-nums{display:flex;justify-content:space-between;margin-top:4px;}
+
+  /* SETTINGS */
+  .settings-lock{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center;}
+  .lock-icon{font-size:56px;margin-bottom:14px;}
+  .lock-title{font-size:18px;font-weight:800;color:var(--blue);margin-bottom:6px;}
+  .lock-sub{font-size:13px;color:var(--gray-600);margin-bottom:20px;}
+  .pin-input{font-size:28px;font-weight:900;letter-spacing:12px;text-align:center;width:160px;padding:12px;border:2px solid var(--gray-200);border-radius:12px;font-family:'Manrope',sans-serif;outline:none;}
+  .pin-input:focus{border-color:var(--blue);}
+  .config-section{background:white;border-radius:var(--radius);padding:14px;margin-bottom:12px;box-shadow:var(--shadow);}
+  .config-title{font-size:12px;font-weight:800;color:var(--blue);margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px;}
+  .store-row{display:grid;grid-template-columns:1.5fr 1fr 80px 28px;gap:6px;margin-bottom:8px;align-items:end;}
+  .url-status{font-size:11px;margin-top:5px;font-weight:600;}
+  .url-status.ok{color:var(--green);}
+  .info-box{background:var(--blue-light);border-radius:10px;padding:11px;margin-bottom:10px;font-size:12px;line-height:1.6;color:var(--blue);font-weight:500;}
+
+  .toast{position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-20px);background:var(--dark);color:white;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;opacity:0;transition:all .3s;z-index:999;white-space:nowrap;pointer-events:none;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast.success{background:var(--green);}
+  .toast.error{background:var(--red);}
+
+  @media(max-width:380px){
+    .grid2{grid-template-columns:1fr;}
+    .store-row{grid-template-columns:1fr 1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="topbar-logo">FBSM</div>
+    <div class="topbar-sub">Чек-лист управляющего</div>
+  </div>
+  <div class="topbar-right">
+    <div class="topbar-date" id="topbar-date"></div>
+    <div class="topbar-sync" id="topbar-sync"></div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('checklist')">📋 Чек-лист</button>
+  <button class="tab" onclick="switchTab('report')">📊 Отчёт</button>
+  <button class="tab" onclick="switchTab('history')">📈 Месяц</button>
+  <button class="tab" onclick="switchTab('settings')">⚙️</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ══════════════════ TAB: CHECKLIST ══════════════════ -->
+<div id="tab-checklist" class="content">
+
+  <!-- Магазин -->
+  <div class="card card-blue">
+    <div class="grid2">
+      <div class="full">
+        <div class="field-label">Магазин</div>
+        <select class="field-input" id="store" onchange="onStoreChange()">
+          <option value="">— выбрать —</option>
+        </select>
+      </div>
+      <div>
+        <div class="field-label">Дата</div>
+        <input type="date" class="field-input" id="report-date"/>
+      </div>
+      <div>
+        <div class="field-label">Управляющий</div>
+        <input type="text" class="field-input" id="manager" readonly placeholder="подставится автоматически"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- Месячный прогресс -->
+  <div class="month-card" id="month-card" style="display:none">
+    <div class="month-top">
+      <div>
+        <div class="month-name" id="month-name">план месяца</div>
+        <div class="month-store-nm" id="month-store-nm"></div>
+        <div class="sync-badge offline" id="sync-badge">
+          <span class="sync-dot"></span><span id="sync-text">не синхронизировано</span>
+        </div>
+      </div>
+      <div class="month-pct-big" id="month-pct">—</div>
+    </div>
+    <div class="bar-bg"><div class="bar-fill" id="month-bar" style="width:0%"></div></div>
+    <div class="month-row">
+      <span style="font-weight:600;font-size:12px" id="month-fact-val">Факт: —</span>
+      <span style="color:var(--gray-600);font-weight:600;font-size:12px" id="month-plan-val">План: —</span>
+    </div>
+    <div class="month-days-str" id="month-days-str"></div>
+  </div>
+
+  <!-- Сотрудники на смене -->
+  <div class="staff-block">
+    <div class="staff-top">
+      <span class="staff-icon">👥</span>
+      <span class="staff-title">Сотрудников на смене</span>
+      <div class="staff-count-wrap">
+        <button class="count-btn" onclick="changeStaff(-1)">−</button>
+        <div class="count-num" id="staff-count">0</div>
+        <button class="count-btn" onclick="changeStaff(1)">+</button>
+      </div>
+    </div>
+    <div>
+      <div class="field-label" style="margin-bottom:4px">Состав смены (ФИО или имена)</div>
+      <textarea class="check-note" id="staff-comment"
+        placeholder="Например: Айгуль, Дмитрий, Сауле — или любой комментарий по смене"
+        style="margin-left:0;width:100%;min-height:40px"></textarea>
+    </div>
+  </div>
+
+  <!-- Цифры дня -->
+  <div class="card card-orange">
+    <div class="field-label" style="margin-bottom:10px">📊 Цифры дня</div>
+    <div class="grid2">
+      <div class="full">
+        <div class="field-label">Выручка (факт) ₸</div>
+        <input type="number" class="field-input" id="revenue" placeholder="0" oninput="calcMetrics()"/>
+      </div>
+      <div>
+        <div class="field-label">Кол-во чеков</div>
+        <input type="number" class="field-input" id="checks" placeholder="0" oninput="calcMetrics()"/>
+      </div>
+      <div>
+        <div class="field-label">Посетителей</div>
+        <input type="number" class="field-input" id="visitors" placeholder="0" oninput="calcMetrics()"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- Метрики -->
+  <div class="metrics-row">
+    <div class="metric-card">
+      <div class="metric-label">% плана месяца</div>
+      <div class="metric-value" id="m-month-pct">—</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Ср. чек</div>
+      <div class="metric-value" id="m-avg">—</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Конверсия</div>
+      <div class="metric-value" id="m-conv">—</div>
+    </div>
+  </div>
+
+  <!-- Задачи смены -->
+  <div class="tasks-block">
+    <div class="tasks-header">
+      <span class="tasks-icon">✅</span>
+      <span class="tasks-title">Задачи на смену</span>
+      <span class="tasks-badge" id="tasks-badge">0 / 0</span>
+    </div>
+    <div id="tasks-list"></div>
+    <button class="btn-outline" onclick="addTask()" style="margin-top:4px">+ Добавить задачу</button>
+  </div>
+
+  <!-- Возвраты -->
+  <div class="returns-block">
+    <div class="block-toggle" onclick="toggleBlock('returns')">
+      <span style="font-size:20px">↩️</span>
+      <span class="block-toggle-label">Возвраты</span>
+      <span class="block-count ret-count" id="returns-count">0 шт</span>
+      <span class="block-chev" id="ret-chev">▼</span>
+    </div>
+    <div class="block-body" id="returns-body">
+      <div id="returns-list"></div>
+      <button class="btn-outline" onclick="addReturn()" style="margin-top:6px">+ Добавить возврат</button>
+    </div>
+  </div>
+
+  <!-- Чек-лист (без пункта задач — он вынесен отдельно) -->
+  <div id="sections-container"></div>
+
+  <!-- Инциденты -->
+  <div class="section" style="margin-bottom:80px">
+    <div class="section-header" style="background:var(--gray-600)">
+      <span class="section-icon">⚠️</span>
+      <span class="section-title">Инциденты / Комментарии</span>
+    </div>
+    <div class="section-body" style="padding:12px 14px">
+      <textarea class="check-note" id="incidents"
+        placeholder="Нештатные ситуации, поломки, конфликты, предложения. Если всё спокойно — напишите: Без инцидентов"
+        style="margin-left:0;width:100%;min-height:70px"></textarea>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ TAB: REPORT ══════════════════ -->
+<div id="tab-report" class="content" style="display:none">
+  <div class="info-box" id="report-empty">Заполните чек-лист и нажмите <strong>«Отправить»</strong></div>
+  <div id="report-content" style="display:none;padding-bottom:20px"></div>
+</div>
+
+<!-- ══════════════════ TAB: HISTORY ══════════════════ -->
+<div id="tab-history" class="content" style="display:none">
+  <div class="info-box">Текущий месяц по выбранному магазину</div>
+  <div id="history-content">
+    <div style="text-align:center;padding:40px 0;color:var(--gray-400);font-size:13px">Нажмите «Загрузить»</div>
+  </div>
+  <button class="btn btn-secondary" style="width:100%;margin-top:4px" onclick="loadHistory()">🔄 Загрузить месяц</button>
+</div>
+
+<!-- ══════════════════ TAB: SETTINGS ══════════════════ -->
+<div id="tab-settings" class="content" style="display:none">
+  <div id="settings-lock" class="settings-lock">
+    <div class="lock-icon">🔐</div>
+    <div class="lock-title">Только для администратора</div>
+    <div class="lock-sub">Введите PIN-код</div>
+    <input type="password" class="pin-input" id="pin-input" maxlength="4" placeholder="••••" oninput="checkPin()"/>
+    <div style="margin-top:10px;font-size:11px;color:var(--gray-400)">По умолчанию: 1234</div>
+  </div>
+  <div id="settings-content" style="display:none">
+    <div class="config-section">
+      <div class="config-title">🏪 Магазины, управляющие, планы</div>
+      <div class="info-box">Название / ФИО управляющего / Месячный план ₸</div>
+      <div style="display:grid;grid-template-columns:1.5fr 1fr 80px 28px;gap:6px;margin-bottom:6px">
+        <div class="field-label">Магазин</div><div class="field-label">Управляющий</div>
+        <div class="field-label">План ₸</div><div></div>
+      </div>
+      <div id="stores-editor"></div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-secondary btn-sm" onclick="addStoreRow()">+ Добавить</button>
+        <button class="btn btn-primary btn-sm" onclick="saveStores()">💾 Сохранить</button>
+      </div>
+    </div>
+    <div class="config-section">
+      <div class="config-title">🔑 Смена PIN</div>
+      <div class="grid2">
+        <div><div class="field-label">Новый PIN</div><input type="password" class="field-input" id="new-pin" maxlength="4" placeholder="4 цифры"/></div>
+        <div><div class="field-label">Повторить</div><input type="password" class="field-input" id="new-pin2" maxlength="4" placeholder="4 цифры"/></div>
+      </div>
+      <button class="btn btn-primary btn-sm" style="margin-top:10px;width:100%" onclick="changePin()">Сохранить PIN</button>
+    </div>
+    <div class="config-section">
+      <div class="config-title">🔗 Google Apps Script URL</div>
+      <input type="url" class="field-input" id="api-url" placeholder="https://script.google.com/macros/s/.../exec" oninput="saveApiUrl()"/>
+      <div class="url-status" id="url-status"></div>
+      <button class="btn btn-secondary btn-sm" style="margin-top:10px;width:100%" onclick="testConnection()">🔌 Проверить подключение</button>
+    </div>
+    <div class="config-section">
+      <div class="config-title">🚪 Выход</div>
+      <button class="btn btn-secondary" style="width:100%" onclick="lockSettings()">Заблокировать настройки</button>
+    </div>
+  </div>
+</div>
+
+<div class="bottom-bar" id="bottom-bar">
+  <button class="btn btn-secondary" onclick="resetForm()">↺</button>
+  <button class="btn btn-primary" id="submit-btn" onclick="submitReport()">📤 Отправить отчёт</button>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════════════════
+const DEFAULT_STORES = [
+  { name:'Атамекен (Алматы)',               manager:'', plan:0 },
+  { name:'Асфендиярова / Сыгынак (Астана)', manager:'', plan:0 },
+  { name:'Манаса (Астана)',                 manager:'', plan:0 },
+  { name:'Республика (Астана)',             manager:'', plan:0 },
+  { name:'ГрандСтор (Караганда)',           manager:'', plan:0 },
+];
+const DEFAULT_PIN = '1234';
+
+const SECTIONS = [
+  { id:'open', icon:'🔓', title:'Открытие магазина', color:'#1F4E79', items:[
+    { id:'open_arrival',    text:'Прибыть в магазин за 15 мин до открытия',       ph:'Время прихода, состав смены' },
+    { id:'open_appearance', text:'Проверить внешний вид сотрудников',              ph:'Все соответствуют / кто не соответствует и что сделано' },
+    { id:'open_cleanliness',text:'Чистота зала, витрин, примерочных',             ph:'Порядок / что было не так, кто устранил' },
+    { id:'open_tags',       text:'Ценники и маячки на товаре в порядке',           ph:'Всё ок / что поправили' },
+    { id:'open_equipment',  text:'Освещение и оборудование работают',              ph:'Всё ок / что не работало, что сделано' },
+    { id:'open_cashier',    text:'Касса открыта',                                  ph:'Открыта в ЧЧ:ММ' },
+    { id:'open_counter',    text:'Счётчик посетителей обнулён',                    ph:'Обнулён в ЧЧ:ММ' },
+  ]},
+  { id:'day', icon:'📊', title:'Контроль в течение дня', color:'#2E75B6', items:[
+    { id:'day_service',   text:'Качество обслуживания покупателей',                ph:'Замечаний нет / что исправили' },
+    { id:'day_conflicts', text:'Конфликтные ситуации с клиентами',                 ph:'Конфликтов не было / ситуация: ..., решили: ...' },
+    { id:'day_order',     text:'Порядок в зале и корректность выкладки',           ph:'Всё ок / что поправили' },
+    { id:'day_schedule',  text:'График смен и перерывы соблюдены',                 ph:'По графику / отклонения: ...' },
+  ]},
+  { id:'cash', icon:'💰', title:'Касса и финансы', color:'#1D6F42', items:[
+    { id:'cash_ops',        text:'Кассовые операции без нарушений',                ph:'Без нарушений / что было: ...' },
+    { id:'cash_collection', text:'Инкассация (если была)',                         ph:'Не было / была в ЧЧ:ММ, сумма ₸ ____, зафиксировано' },
+    { id:'cash_reconcile',  text:'Сверка кассы выполнена',                         ph:'Расхождений нет / расхождение ₸ ____, причина: ...' },
+    { id:'cash_close',      text:'Кассовая смена закрыта',                         ph:'Закрыта в ЧЧ:ММ, итог ₸ ____' },
+  ]},
+  { id:'goods', icon:'📦', title:'Товар и склад', color:'#7B3F00', items:[
+    { id:'goods_receive',  text:'Приёмка товара (если была поставка)',             ph:'Поставки не было / принято ___ ед., накладная № ___, расхождений нет/есть' },
+    { id:'goods_revision', text:'Мини-ревизия по наименованиям',                   ph:'Проверены: (перечислить позиции/группы). Замечания: ...' },
+    { id:'goods_display',  text:'Выкладка скорректирована при необходимости',      ph:'Изменений не требовалось / что переложили' },
+  ]},
+  { id:'close', icon:'🔒', title:'Закрытие магазина', color:'#424242', items:[
+    { id:'close_counter',  text:'Показания счётчика зафиксированы в журнале',      ph:'Посетителей за день: ____ (записано)' },
+    { id:'close_hall',     text:'Зал, склад, примерочные проверены',               ph:'Всё в порядке / что устранили' },
+    { id:'close_property', text:'Имущество в сохранности, зоны доступа закрыты',  ph:'Всё ок' },
+    { id:'close_briefing', text:'Итоговый инструктаж команде проведён',            ph:'Что обсудили' },
+    { id:'close_store',    text:'Магазин закрыт в установленное время',            ph:'Закрыт в ЧЧ:ММ' },
+  ]},
+];
+
+// ══════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════
+let checkState = {};
+let tasks      = [];   // [{ text, done, result }]
+let returns    = [];
+let staffCount = 0;
+let monthAccum = 0;
+let monthPlan  = 0;
+let syncStatus = 'none';
+let settingsUnlocked = false;
+
+// ══════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════
+function init() {
+  const now = new Date();
+  document.getElementById('topbar-date').textContent =
+    now.toLocaleDateString('ru-RU', { weekday:'short', day:'numeric', month:'short' });
+  document.getElementById('report-date').value = now.toISOString().split('T')[0];
+  buildStoreSelect();
+  renderSections();
+  renderTasks();
+}
+
+function getStores() {
+  try { const s = localStorage.getItem('fbsm_stores'); return s ? JSON.parse(s) : DEFAULT_STORES; }
+  catch { return DEFAULT_STORES; }
+}
+
+function buildStoreSelect() {
+  const stores = getStores();
+  const sel = document.getElementById('store');
+  sel.innerHTML = '<option value="">— выбрать —</option>';
+  stores.forEach((s, i) => {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = s.name; sel.appendChild(o);
+  });
+  const last = localStorage.getItem('fbsm_last_store');
+  if (last !== null && last !== '') { sel.value = last; onStoreChange(); }
+}
+
+// ══════════════════════════════════════════════════════════
+// STORE CHANGE + SYNC
+// ══════════════════════════════════════════════════════════
+async function onStoreChange() {
+  const idx = document.getElementById('store').value;
+  if (idx === '') {
+    document.getElementById('manager').value = '';
+    document.getElementById('month-card').style.display = 'none';
+    monthAccum = 0; monthPlan = 0; return;
+  }
+  localStorage.setItem('fbsm_last_store', idx);
+  const store = getStores()[parseInt(idx)];
+  document.getElementById('manager').value = store.manager || '';
+  monthPlan = store.plan || 0;
+
+  const now = new Date();
+  document.getElementById('month-card').style.display = '';
+  document.getElementById('month-name').textContent =
+    now.toLocaleDateString('ru-RU', { month:'long', year:'numeric' });
+  document.getElementById('month-store-nm').textContent = store.name;
+
+  const apiUrl = localStorage.getItem('fbsm_api_url');
+  if (apiUrl) {
+    setSyncStatus('loading');
+    try {
+      const resp = await fetch(apiUrl, {
+        method:'POST',
+        body: JSON.stringify({
+          action:'getMonthAccum', store: store.name,
+          month: now.getMonth()+1, year: now.getFullYear(),
+          today: now.toISOString().split('T')[0]
+        })
+      });
+      const r = await resp.json();
+      if (r.ok) { monthAccum = parseFloat(r.accum)||0; setSyncStatus('ok'); }
+      else throw new Error(r.error);
+    } catch {
+      monthAccum = parseFloat(localStorage.getItem(`fbsm_accum_${store.name}`)||'0');
+      setSyncStatus('offline');
+    }
+  } else {
+    monthAccum = parseFloat(localStorage.getItem(`fbsm_accum_${store.name}`)||'0');
+    setSyncStatus('offline');
+  }
+  calcMetrics();
+}
+
+function setSyncStatus(s) {
+  syncStatus = s;
+  const badge = document.getElementById('sync-badge');
+  const text  = document.getElementById('sync-text');
+  const ts    = document.getElementById('topbar-sync');
+  badge.className = `sync-badge ${s}`;
+  if (s==='loading'){ text.textContent='синхронизация...'; ts.textContent='⏳ загрузка...'; }
+  if (s==='ok')     { text.textContent='данные актуальны'; ts.textContent=''; }
+  if (s==='offline'){ text.textContent='офлайн — кэш';    ts.textContent=''; }
+}
+
+// ══════════════════════════════════════════════════════════
+// STAFF
+// ══════════════════════════════════════════════════════════
+function changeStaff(delta) {
+  staffCount = Math.max(0, staffCount + delta);
+  document.getElementById('staff-count').textContent = staffCount;
+}
+
+// ══════════════════════════════════════════════════════════
+// TASKS
+// ══════════════════════════════════════════════════════════
+function addTask() {
+  tasks.push({ text:'', done:false, result:'' });
+  renderTasks();
+  // Фокус на новое поле
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('.task-text-input');
+    if (inputs.length) inputs[inputs.length-1].focus();
+  }, 50);
+}
+
+function removeTask(i) { tasks.splice(i,1); renderTasks(); }
+
+function toggleTask(i) {
+  tasks[i].done = !tasks[i].done;
+  renderTasks();
+}
+
+function renderTasks() {
+  const el    = document.getElementById('tasks-list');
+  const done  = tasks.filter(t => t.done).length;
+  const total = tasks.length;
+  document.getElementById('tasks-badge').textContent = `${done} / ${total}`;
+
+  if (!tasks.length) {
+    el.innerHTML = `<div style="text-align:center;padding:16px;color:var(--gray-400);font-size:12px;font-style:italic">Добавьте задачи на смену утром — отметьте выполнение вечером</div>`;
+    return;
+  }
+
+  el.innerHTML = tasks.map((t, i) => `
+    <div class="task-item${t.done?' done-task':''}" id="task-${i}">
+      <div class="task-top-row">
+        <div class="task-check${t.done?' done':''}" onclick="toggleTask(${i})"></div>
+        <input class="task-text-input" type="text" placeholder="Задача на смену..." value="${escHtml(t.text)}"
+          oninput="tasks[${i}].text=this.value"
+          ${t.done?'style="text-decoration:line-through;color:var(--green)"':''}/>
+        <button class="task-remove" onclick="removeTask(${i})">✕</button>
+      </div>
+      ${t.done ? `
+        <div class="task-result-wrap">
+          <div class="task-result-label">Результат / комментарий</div>
+          <input class="task-result-input" type="text" placeholder="Что было сделано, результат..."
+            value="${escHtml(t.result)}" oninput="tasks[${i}].result=this.value"/>
+        </div>` : ''}
+    </div>`).join('');
+}
+
+function escHtml(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ══════════════════════════════════════════════════════════
+// METRICS
+// ══════════════════════════════════════════════════════════
+function calcMetrics() {
+  const rev  = parseFloat(document.getElementById('revenue').value)||0;
+  const chks = parseInt(document.getElementById('checks').value)   ||0;
+  const vis  = parseInt(document.getElementById('visitors').value) ||0;
+  const avg  = chks>0 ? Math.round(rev/chks) : 0;
+  const conv = vis >0 ? ((chks/vis)*100).toFixed(1) : 0;
+  const total = monthAccum + rev;
+  const mPct  = monthPlan>0 ? Math.round((total/monthPlan)*100) : 0;
+
+  const mp = document.getElementById('m-month-pct');
+  mp.textContent = monthPlan ? `${mPct}%` : '—';
+  mp.style.color = mPct>=100?'var(--green)':mPct>=70?'var(--orange)':mPct>0?'var(--red)':'var(--blue)';
+  document.getElementById('m-avg').textContent  = avg  ? avg.toLocaleString('ru')  : '—';
+  document.getElementById('m-conv').textContent = conv ? `${conv}%` : '—';
+
+  if (monthPlan) {
+    const color = mPct>=100?'var(--green)':mPct>=70?'var(--orange)':'var(--red)';
+    document.getElementById('month-pct').textContent = `${mPct}%`;
+    document.getElementById('month-pct').style.color = color;
+    document.getElementById('month-bar').style.width = `${Math.min(mPct,100)}%`;
+    document.getElementById('month-bar').style.background = color;
+    document.getElementById('month-fact-val').textContent = `Факт: ${total.toLocaleString('ru')} ₸`;
+    document.getElementById('month-plan-val').textContent = `План: ${monthPlan.toLocaleString('ru')} ₸`;
+    const now = new Date();
+    const last = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+    const left = last - now.getDate();
+    const need = monthPlan - total;
+    document.getElementById('month-days-str').textContent =
+      need>0&&left>0 ? `Осталось ${left} дн. | нужно ещё ${need.toLocaleString('ru')} ₸ (≈${Math.round(need/left).toLocaleString('ru')}/день)`
+      : left===0 ? 'Последний день месяца' : '✅ План выполнен!';
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// RETURNS
+// ══════════════════════════════════════════════════════════
+function toggleBlock(id) {
+  const body = document.getElementById(`${id}-body`);
+  const chev = document.getElementById(`ret-chev`);
+  const open = body.classList.toggle('open');
+  chev.style.transform = open ? 'rotate(180deg)' : '';
+}
+function addReturn() {
+  returns.push({ sum:'', qty:'1', reason:'', exchange:'' });
+  renderReturns();
+  const body = document.getElementById('returns-body');
+  if (!body.classList.contains('open')) toggleBlock('returns');
+}
+function removeReturn(i) { returns.splice(i,1); renderReturns(); }
+function renderReturns() {
+  document.getElementById('returns-list').innerHTML = returns.map((r,i) => `
+    <div class="return-item">
+      <div class="return-header">
+        <span class="return-num">Возврат №${i+1}</span>
+        <button class="btn-remove" onclick="removeReturn(${i})">✕</button>
+      </div>
+      <div class="grid2" style="gap:8px;margin-bottom:8px">
+        <div><div class="field-label">Сумма ₸</div>
+          <input class="field-input" type="number" placeholder="0" value="${r.sum}"
+            oninput="returns[${i}].sum=this.value;updateReturnCount()"/></div>
+        <div><div class="field-label">Кол-во ед.</div>
+          <input class="field-input" type="number" placeholder="1" value="${r.qty}"
+            oninput="returns[${i}].qty=this.value;updateReturnCount()"/></div>
+      </div>
+      <div style="margin-bottom:8px">
+        <div class="field-label">Причина возврата</div>
+        <input class="field-input" type="text" placeholder="Не подошёл размер / брак / другое..." value="${escHtml(r.reason)}"
+          oninput="returns[${i}].reason=this.value"/></div>
+      <div>
+        <div class="field-label">Что предложено на обмен</div>
+        <input class="field-input" type="text" placeholder="Предложили размер M, отказался / обменяли на арт. 1234" value="${escHtml(r.exchange)}"
+          oninput="returns[${i}].exchange=this.value"/></div>
+    </div>`).join('');
+  updateReturnCount();
+}
+function updateReturnCount() {
+  const qty = returns.reduce((s,r)=>s+(parseInt(r.qty)||0),0);
+  const sum = returns.reduce((s,r)=>s+(parseFloat(r.sum)||0),0);
+  document.getElementById('returns-count').textContent = qty?`${qty} шт / ${sum.toLocaleString('ru')} ₸`:'0 шт';
+}
+
+// ══════════════════════════════════════════════════════════
+// CHECKLIST
+// ══════════════════════════════════════════════════════════
+function renderSections() {
+  const c = document.getElementById('sections-container');
+  c.innerHTML = '';
+  SECTIONS.forEach(sec => {
+    const done  = sec.items.filter(i=>checkState[i.id]?.checked).length;
+    const total = sec.items.length;
+    const pct   = Math.round(done/total*100);
+    const div   = document.createElement('div');
+    div.className='section'; div.id=`sec-${sec.id}`;
+    div.innerHTML=`
+      <div class="section-header" style="background:${sec.color}" onclick="toggleSection('${sec.id}')">
+        <span class="section-icon">${sec.icon}</span>
+        <div style="flex:1">
+          <div class="section-title">${sec.title}</div>
+          <div class="prog-bg"><div class="prog-fill" style="width:${pct}%"></div></div>
+        </div>
+        <span class="section-badge">${done}/${total}</span>
+        <span class="section-chevron${pct===100?' open':''}" id="chev-${sec.id}">▼</span>
+      </div>
+      <div class="section-body" id="body-${sec.id}" style="${pct===100?'display:none':''}">
+        ${sec.items.map((item,idx)=>renderItem(item,idx+1)).join('')}
+      </div>`;
+    c.appendChild(div);
+  });
+}
+function renderItem(item, num) {
+  const s = checkState[item.id]||{};
+  return `<div class="check-item${s.checked?' done':''}" id="item-${item.id}">
+    <div class="check-top">
+      <div class="check-box${s.checked?' checked':''}" onclick="toggleItem('${item.id}')"></div>
+      <span class="check-num">${num}</span>
+      <span class="check-text">${item.text}</span>
+    </div>
+    <textarea class="check-note" id="note-${item.id}" placeholder="${item.ph}"
+      oninput="checkState['${item.id}']||(checkState['${item.id}']={});checkState['${item.id}'].note=this.value"
+      rows="1">${s.note||''}</textarea>
+  </div>`;
+}
+function toggleSection(id) {
+  const body=document.getElementById(`body-${id}`);
+  const chev=document.getElementById(`chev-${id}`);
+  const h=body.style.display==='none';
+  body.style.display=h?'':'none';
+  chev.classList.toggle('open',h);
+}
+function toggleItem(id) {
+  if(!checkState[id]) checkState[id]={};
+  checkState[id].checked=!checkState[id].checked;
+  const el=document.getElementById(`item-${id}`);
+  el.classList.toggle('done',checkState[id].checked);
+  el.querySelector('.check-box').classList.toggle('checked',checkState[id].checked);
+  SECTIONS.forEach(sec=>{
+    if(!sec.items.find(i=>i.id===id)) return;
+    const done=sec.items.filter(i=>checkState[i.id]?.checked).length;
+    const total=sec.items.length;
+    document.querySelector(`#sec-${sec.id} .section-badge`).textContent=`${done}/${total}`;
+    document.querySelector(`#sec-${sec.id} .prog-fill`).style.width=`${Math.round(done/total*100)}%`;
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// SUBMIT
+// ══════════════════════════════════════════════════════════
+async function submitReport() {
+  const idx  = document.getElementById('store').value;
+  const date = document.getElementById('report-date').value;
+  const rev  = parseFloat(document.getElementById('revenue').value)||0;
+  if (!idx)  { showToast('Выберите магазин','error'); return; }
+  if (!date) { showToast('Укажите дату','error'); return; }
+  if (!rev)  { showToast('Введите выручку за день','error'); return; }
+
+  const store = getStores()[parseInt(idx)];
+  const chks  = parseInt(document.getElementById('checks').value)  ||0;
+  const vis   = parseInt(document.getElementById('visitors').value)||0;
+  const avg   = chks>0?Math.round(rev/chks):0;
+  const conv  = vis >0?((chks/vis)*100).toFixed(1):0;
+  const total = monthAccum+rev;
+  const mPct  = monthPlan>0?Math.round((total/monthPlan)*100):0;
+
+  const payload = {
+    date, manager: store.manager||'',
+    store: store.name,
+    city: store.name.includes('Астана')?'Астана':store.name.includes('Алматы')?'Алматы':'Караганда',
+    revenue:rev, monthPlan, monthAccum:total, monthPct:mPct,
+    checks:chks, avgCheck:avg, visitors:vis, conv,
+    staffCount, staffComment: document.getElementById('staff-comment').value,
+    tasks, returns,
+    incidents: document.getElementById('incidents').value,
+    checkItems:{},
+  };
+  SECTIONS.forEach(sec=>sec.items.forEach(item=>{
+    const s=checkState[item.id]||{};
+    payload.checkItems[item.id]={checked:!!s.checked, note:s.note||'', text:item.text};
+  }));
+
+  showReport(payload);
+  switchTab('report');
+
+  const apiUrl = localStorage.getItem('fbsm_api_url');
+  if (apiUrl) {
+    const btn=document.getElementById('submit-btn');
+    btn.textContent='⏳ Отправка...'; btn.disabled=true;
+    try {
+      const flat={...payload, tasks:JSON.stringify(tasks), returns:JSON.stringify(returns)};
+      SECTIONS.forEach(sec=>sec.items.forEach(item=>{
+        const v=payload.checkItems[item.id];
+        flat[item.id]=`[${v.checked?'✓':'✗'}] ${v.note}`;
+      }));
+      delete flat.checkItems;
+      const resp=await fetch(apiUrl,{method:'POST',body:JSON.stringify({action:'saveDaily',payload:flat})});
+      const result=await resp.json();
+      if(result.ok){
+        showToast('✅ Отправлено в Google Sheets','success');
+        localStorage.setItem(`fbsm_accum_${store.name}`,total);
+        monthAccum=total; calcMetrics();
+      } else { showToast('⚠️ '+(result.error||'Ошибка'),'error'); }
+    } catch { showToast('📵 Нет связи — скопируйте отчёт вручную','error'); }
+    finally { btn.textContent='📤 Отправить отчёт'; btn.disabled=false; }
+  } else {
+    showToast('✅ Отчёт сформирован','success');
+    localStorage.setItem(`fbsm_accum_${store.name}`,total);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// REPORT
+// ══════════════════════════════════════════════════════════
+function showReport(p) {
+  document.getElementById('report-empty').style.display='none';
+  const el=document.getElementById('report-content');
+  el.style.display='block';
+  const pClass=p.monthPct>=100?'good':p.monthPct>=70?'warn':'bad';
+  const emoji =p.monthPct>=100?'🟢':p.monthPct>=70?'🟡':'🔴';
+  const dateStr=new Date(p.date).toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
+
+  // Задачи
+  const tasksHtml = p.tasks.length
+    ? p.tasks.map((t,i)=>`
+        <div class="task-report-item">
+          <div class="cli-top">
+            <span class="task-report-status">${t.done?'✅':'❌'}</span>
+            <span class="task-report-text" style="${t.done?'text-decoration:line-through;color:var(--green)':''}">${t.text||'—'}</span>
+          </div>
+          ${t.done&&t.result?`<div class="task-report-result">→ ${t.result}</div>`:''}
+          ${!t.done?`<div class="cli-note" style="color:var(--orange)">→ не выполнено</div>`:''}
+        </div>`).join('')
+    : '<div style="font-size:13px;color:var(--gray-600)">Задачи не добавлялись</div>';
+
+  // Возвраты
+  const returnsHtml = p.returns.length
+    ? p.returns.map((r,i)=>`
+        <div style="background:var(--red-light);border-radius:8px;padding:8px 10px;margin-bottom:6px">
+          <div style="font-size:12px;font-weight:800;color:var(--red);margin-bottom:4px">Возврат №${i+1} — ${parseInt(r.qty)||1} ед. / ${(parseFloat(r.sum)||0).toLocaleString('ru')} ₸</div>
+          ${r.reason  ?`<div style="font-size:12px">📌 Причина: ${r.reason}</div>`:''}
+          ${r.exchange?`<div style="font-size:12px">🔄 Предложено: ${r.exchange}</div>`:''}
+        </div>`).join('')
+    : '<div style="font-size:13px;color:var(--gray-600)">Возвратов не было</div>';
+
+  // Чек-лист
+  const checklistHtml = SECTIONS.map(sec=>`
+    <div style="margin-bottom:10px">
+      <div style="font-size:11px;font-weight:800;color:var(--gray-600);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">${sec.icon} ${sec.title}</div>
+      ${sec.items.map(item=>{
+        const v=p.checkItems[item.id]||{checked:false,note:''};
+        return `<div class="cli-item">
+          <div class="cli-top"><span style="font-size:13px">${v.checked?'✅':'❌'}</span><span class="cli-text">${item.text}</span></div>
+          ${v.note?`<div class="cli-note">→ ${v.note}</div>`:''}
+        </div>`;
+      }).join('')}
+    </div>`).join('');
+
+  el.innerHTML=`
+    <div class="summary-card">
+      <div class="big-metric ${pClass}">
+        <div>
+          <div class="bm-val">${p.monthPct}%</div>
+          <div class="bm-label">план месяца</div>
+          <div class="bm-sub">${(p.monthAccum||0).toLocaleString('ru')} ₸ из ${(p.monthPlan||0).toLocaleString('ru')} ₸</div>
+        </div>
+        <div style="font-size:44px">${emoji}</div>
+      </div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-title">Смена</div>
+      <div class="srow"><span class="skey">Сотрудников на смене</span><span class="sval">${p.staffCount} чел.</span></div>
+      ${p.staffComment?`<div class="srow"><span class="skey">Состав</span><span class="sval" style="text-align:right;max-width:60%">${p.staffComment}</span></div>`:''}
+    </div>
+    <div class="summary-card">
+      <div class="summary-title">Цифры дня</div>
+      <div class="srow"><span class="skey">Выручка за день</span><span class="sval">${p.revenue.toLocaleString('ru')} ₸</span></div>
+      <div class="srow"><span class="skey">Средний чек</span><span class="sval">${p.avgCheck.toLocaleString('ru')} ₸</span></div>
+      <div class="srow"><span class="skey">Кол-во чеков</span><span class="sval">${p.checks}</span></div>
+      <div class="srow"><span class="skey">Посетителей</span><span class="sval">${p.visitors}</span></div>
+      <div class="srow"><span class="skey">Конверсия</span><span class="sval">${p.conv}%</span></div>
+    </div>
+    <div class="summary-card"><div class="summary-title">✅ Задачи смены</div>${tasksHtml}</div>
+    <div class="summary-card"><div class="summary-title">↩️ Возвраты</div>${returnsHtml}</div>
+    <div class="summary-card"><div class="summary-title">📋 Чек-лист с комментариями</div>${checklistHtml}</div>
+    ${p.incidents?`<div class="summary-card"><div class="summary-title">⚠️ Инциденты</div><div style="font-size:13px;line-height:1.6">${p.incidents}</div></div>`:''}
+    <div class="summary-card" style="border-left:4px solid var(--orange)">
+      <div class="summary-title">📋 Текст для Битрикс</div>
+      <div style="font-size:12px;line-height:1.7;white-space:pre-wrap;background:var(--gray-100);padding:12px;border-radius:8px;font-family:monospace;max-height:340px;overflow-y:auto" id="bitrix-text">${buildBitrixText(p,dateStr,emoji)}</div>
+      <button class="btn btn-primary" style="margin-top:10px;width:100%" onclick="copyBitrix()">📋 Скопировать для Битрикс</button>
+    </div>`;
+}
+
+function buildBitrixText(p, dateStr, emoji) {
+  let t = `📊 ЕЖЕДНЕВНЫЙ ОТЧЁТ FBSM\n━━━━━━━━━━━━━━━━━━━━━━━\n📍 ${p.store}\n📅 ${dateStr}\n👤 ${p.manager}\n\n${emoji} ПЛАН МЕСЯЦА: ${p.monthPct}%\n   Накоплено: ${(p.monthAccum||0).toLocaleString('ru')} ₸ из ${(p.monthPlan||0).toLocaleString('ru')} ₸\n\n👥 СМЕНА: ${p.staffCount} чел.`;
+  if (p.staffComment) t += ` (${p.staffComment})`;
+  t += `\n\n📈 ЦИФРЫ ДНЯ:\n💰 Выручка: ${p.revenue.toLocaleString('ru')} ₸\n🧾 Чеки: ${p.checks} шт | Ср. чек: ${p.avgCheck.toLocaleString('ru')} ₸\n👥 Посетители: ${p.visitors} | Конверсия: ${p.conv}%`;
+
+  // Задачи
+  if (p.tasks.length) {
+    const done  = p.tasks.filter(t=>t.done).length;
+    const total = p.tasks.length;
+    t += `\n\n✅ ЗАДАЧИ СМЕНЫ (${done}/${total} выполнено):`;
+    p.tasks.forEach((task, i) => {
+      t += `\n${task.done?'✅':'❌'} ${task.text||'—'}`;
+      if (task.done && task.result) t += `\n   → ${task.result}`;
+      if (!task.done) t += `\n   → не выполнено`;
+    });
+  }
+
+  // Возвраты
+  if (p.returns.length) {
+    t += `\n\n↩️ ВОЗВРАТЫ (${p.returns.length}):`;
+    p.returns.forEach((r,i)=>{
+      t += `\n  ${i+1}. ${parseInt(r.qty)||1} ед. / ${(parseFloat(r.sum)||0).toLocaleString('ru')} ₸`;
+      if (r.reason)   t += `\n     Причина: ${r.reason}`;
+      if (r.exchange) t += `\n     Предложено: ${r.exchange}`;
+    });
+  } else { t += `\n↩️ Возвратов нет`; }
+
+  t += `\n\n📋 ЧЕК-ЛИСТ:`;
+  SECTIONS.forEach(sec=>{
+    t += `\n\n${sec.icon} ${sec.title}:`;
+    sec.items.forEach(item=>{
+      const v=p.checkItems[item.id]||{checked:false,note:''};
+      t += `\n${v.checked?'✅':'❌'} ${item.text}`;
+      if (v.note) t += `\n   → ${v.note}`;
+    });
+  });
+  if (p.incidents) t += `\n\n⚠️ ИНЦИДЕНТЫ:\n${p.incidents}`;
+  return t;
+}
+
+function copyBitrix() {
+  navigator.clipboard.writeText(document.getElementById('bitrix-text').textContent)
+    .then(()=>showToast('Скопировано!','success'));
+}
+
+// ══════════════════════════════════════════════════════════
+// HISTORY
+// ══════════════════════════════════════════════════════════
+async function loadHistory() {
+  const idx    = document.getElementById('store').value;
+  const apiUrl = localStorage.getItem('fbsm_api_url');
+  if (!idx)    { showToast('Выберите магазин','error'); return; }
+  if (!apiUrl) { showToast('Настройте Google Sheets','error'); return; }
+
+  const store = getStores()[parseInt(idx)];
+  const el    = document.getElementById('history-content');
+  el.innerHTML='<div style="text-align:center;padding:30px;color:var(--gray-400)">⏳ Загрузка...</div>';
+  try {
+    const now  = new Date();
+    const resp = await fetch(apiUrl,{method:'POST',body:JSON.stringify({action:'getMonthly',store:store.name,month:now.getMonth()+1,year:now.getFullYear()})});
+    const result = await resp.json();
+    if (!result.ok) throw new Error(result.error||'Ошибка');
+    if (!result.data) { el.innerHTML='<div style="text-align:center;padding:30px;color:var(--gray-400)">Нет данных за текущий месяц</div>'; return; }
+    const d      = result.data;
+    const mn     = now.toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
+    const maxRev = Math.max(...(d.daily||[]).map(r=>parseFloat(r.revenue)||0),1);
+    const pColor = d.pct>=100?'rgba(255,255,255,.95)':d.pct>=70?'#FFD97D':'#FFAAAA';
+    el.innerHTML=`
+      <div class="hist-header">
+        <div class="hist-header-title">${store.name} — ${mn}</div>
+        <div class="hist-header-vals">
+          <div>
+            <div class="hist-rev">${(d.totalRevenue||0).toLocaleString('ru')} ₸</div>
+            <div class="hist-meta">${d.days} дней | план ${(d.totalPlan||0).toLocaleString('ru')} ₸</div>
+            <div class="hist-meta">Ср. чек ${(d.avgCheck||0).toLocaleString('ru')} ₸ | конв. ${d.avgConv}%</div>
+          </div>
+          <div style="text-align:right"><div class="hist-pct" style="color:${pColor}">${d.pct}%</div></div>
+        </div>
+      </div>
+      ${(d.daily||[]).slice().reverse().map(day=>{
+        const rev  = parseFloat(day.revenue)||0;
+        const ppct = parseFloat(day.pct)||0;
+        const color= ppct>=100?'var(--green)':ppct>=80?'#E6A817':'var(--red)';
+        const dt   = new Date(day.date).toLocaleDateString('ru-RU',{weekday:'short',day:'numeric',month:'short'});
+        return `<div class="hist-item">
+          <div class="hist-date">${dt}</div>
+          <div class="hist-bar-bg"><div class="hist-bar-fill" style="width:${Math.round(rev/maxRev*100)}%;background:${color}"></div></div>
+          <div class="hist-nums">
+            <span style="font-size:13px;font-weight:800;color:${color}">${rev.toLocaleString('ru')} ₸</span>
+            <span style="font-size:12px;font-weight:700;color:${color}">${ppct}%</span>
+          </div>
+        </div>`;
+      }).join('')}`;
+  } catch(e) {
+    el.innerHTML=`<div class="info-box" style="color:var(--red)">Ошибка: ${e.message}</div>`;
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// SETTINGS
+// ══════════════════════════════════════════════════════════
+function checkPin() {
+  const val  = document.getElementById('pin-input').value;
+  const saved= localStorage.getItem('fbsm_pin')||DEFAULT_PIN;
+  if (val===saved) {
+    settingsUnlocked=true;
+    document.getElementById('settings-lock').style.display='none';
+    document.getElementById('settings-content').style.display='block';
+    document.getElementById('pin-input').value='';
+    renderStoresEditor();
+    const url=localStorage.getItem('fbsm_api_url')||'';
+    document.getElementById('api-url').value=url;
+    if(url){document.getElementById('url-status').textContent='✓ URL сохранён';document.getElementById('url-status').className='url-status ok';}
+  }
+}
+function lockSettings() {
+  settingsUnlocked=false;
+  document.getElementById('settings-lock').style.display='flex';
+  document.getElementById('settings-content').style.display='none';
+}
+function changePin() {
+  const p1=document.getElementById('new-pin').value;
+  const p2=document.getElementById('new-pin2').value;
+  if(!/^\d{4}$/.test(p1)){showToast('PIN — ровно 4 цифры','error');return;}
+  if(p1!==p2){showToast('PIN не совпадает','error');return;}
+  localStorage.setItem('fbsm_pin',p1);
+  document.getElementById('new-pin').value='';
+  document.getElementById('new-pin2').value='';
+  showToast('✅ PIN изменён','success');
+}
+function renderStoresEditor() {
+  const stores=getStores();
+  document.getElementById('stores-editor').innerHTML=stores.map((s,i)=>`
+    <div class="store-row">
+      <input class="field-input" type="text" placeholder="Название" value="${escHtml(s.name)}" id="st-n-${i}" style="font-size:12px"/>
+      <input class="field-input" type="text" placeholder="ФИО" value="${escHtml(s.manager||'')}" id="st-m-${i}" style="font-size:12px"/>
+      <input class="field-input" type="number" placeholder="0" value="${s.plan||''}" id="st-p-${i}" style="font-size:12px"/>
+      <button class="btn-remove" onclick="deleteStore(${i})">✕</button>
+    </div>`).join('');
+}
+function deleteStore(i){const stores=getStores();stores.splice(i,1);localStorage.setItem('fbsm_stores',JSON.stringify(stores));renderStoresEditor();}
+function addStoreRow(){const stores=getStores();stores.push({name:'',manager:'',plan:0});localStorage.setItem('fbsm_stores',JSON.stringify(stores));renderStoresEditor();}
+function saveStores(){
+  const stores=getStores();
+  const updated=stores.map((s,i)=>({
+    name:   document.getElementById(`st-n-${i}`)?.value.trim()||s.name,
+    manager:document.getElementById(`st-m-${i}`)?.value.trim()||'',
+    plan:   parseFloat(document.getElementById(`st-p-${i}`)?.value)||0,
+  })).filter(s=>s.name);
+  localStorage.setItem('fbsm_stores',JSON.stringify(updated));
+  buildStoreSelect();
+  showToast('✅ Сохранено','success');
+}
+function saveApiUrl(){
+  const url=document.getElementById('api-url').value.trim();
+  localStorage.setItem('fbsm_api_url',url);
+  document.getElementById('url-status').textContent=url?'✓ URL сохранён':'';
+  document.getElementById('url-status').className='url-status ok';
+}
+async function testConnection(){
+  const url=localStorage.getItem('fbsm_api_url');
+  if(!url){showToast('Введите URL','error');return;}
+  showToast('⏳ Проверяю...','');
+  try{const r=await fetch(url);const j=await r.json();showToast(j.ok?'✅ Подключение работает!':'⚠️ '+JSON.stringify(j),j.ok?'success':'error');}
+  catch(e){showToast('❌ '+e.message,'error');}
+}
+
+// ══════════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════════
+function switchTab(tab) {
+  const tabs=['checklist','report','history','settings'];
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',tabs[i]===tab));
+  tabs.forEach(t=>document.getElementById(`tab-${t}`).style.display=t===tab?'':'none');
+  document.getElementById('bottom-bar').style.display=tab==='checklist'?'':'none';
+  if(tab==='settings'&&!settingsUnlocked){
+    document.getElementById('settings-lock').style.display='flex';
+    document.getElementById('settings-content').style.display='none';
+  }
+}
+function showToast(msg,type=''){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className=`toast show ${type}`;
+  setTimeout(()=>el.className='toast',2800);
+}
+function resetForm(){
+  if(!confirm('Сбросить форму? Данные будут потеряны.')) return;
+  checkState={}; tasks=[]; returns=[]; staffCount=0;
+  document.getElementById('staff-count').textContent='0';
+  ['revenue','checks','visitors','incidents','staff-comment'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  renderSections(); renderTasks(); renderReturns(); updateReturnCount(); calcMetrics();
+}
+
+init();
+</script>
+</body>
+</html>
