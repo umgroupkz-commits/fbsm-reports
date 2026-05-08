@@ -1099,29 +1099,63 @@ function renderStoresEditor(){
 let planYear  = new Date().getFullYear();
 let planMonth = new Date().getMonth() + 1;
 
+function savePlanInputsToMemory() {
+  // Сохранить текущие введённые значения в appPlans без отправки в Sheets
+  const validStores = appStores.filter(s => s.name);
+  validStores.forEach((s, si) => {
+    const el = document.getElementById('planval-' + si);
+    if (!el) return;
+    const val = parseFloat(el.value) || 0;
+    const idx = appPlans.findIndex(p =>
+      p.store === s.name &&
+      parseInt(p.month) === planMonth &&
+      parseInt(p.year)  === planYear
+    );
+    if (val > 0) {
+      if (idx >= 0) {
+        appPlans[idx] = { store: s.name, month: planMonth, year: planYear, plan: val };
+      } else {
+        appPlans.push({ store: s.name, month: planMonth, year: planYear, plan: val });
+      }
+    } else if (idx >= 0) {
+      appPlans.splice(idx, 1);
+    }
+  });
+  // Обновить кэш
+  localStorage.setItem('fbsm_plans_cache', JSON.stringify(appPlans));
+}
+
+function switchPlanPeriod(type, value) {
+  // Сохранить текущие значения перед переключением
+  savePlanInputsToMemory();
+  if (type === 'year')  planYear  = parseInt(value);
+  if (type === 'month') planMonth = parseInt(value);
+  renderPlansValues();
+}
+
 function renderPlansEditor() {
   const el = document.getElementById('plans-editor');
   if (!el) return;
 
-  // Годы: текущий и следующий
   const years = [new Date().getFullYear(), new Date().getFullYear() + 1];
   const monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь',
                       'Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 
   let html = '<div style="display:flex;gap:8px;margin-bottom:14px;align-items:center">';
   html += '<div><div class="field-label" style="margin-bottom:4px">Год</div>';
-  html += '<select class="field-input" style="width:100px" onchange="planYear=parseInt(this.value);renderPlansValues()">';
+  html += '<select class="field-input" style="width:100px" onchange="switchPlanPeriod('year',this.value)">';
   years.forEach(y => {
     html += '<option value="' + y + '"' + (y===planYear?' selected':'') + '>' + y + '</option>';
   });
   html += '</select></div>';
   html += '<div><div class="field-label" style="margin-bottom:4px">Месяц</div>';
-  html += '<select class="field-input" style="width:140px" onchange="planMonth=parseInt(this.value);renderPlansValues()">';
+  html += '<select class="field-input" style="width:140px" onchange="switchPlanPeriod('month',this.value)">';
   monthNames.forEach((mn, i) => {
     html += '<option value="' + (i+1) + '"' + ((i+1)===planMonth?' selected':'') + '>' + mn + '</option>';
   });
   html += '</select></div>';
   html += '</div>';
+  html += '<div style="font-size:11px;color:var(--gray-400);font-style:italic;margin-bottom:10px">Данные сохраняются автоматически при переключении месяца. Нажмите «Сохранить планы» для записи в Google Sheets.</div>';
   html += '<div id="plans-values"></div>';
   el.innerHTML = html;
   renderPlansValues();
