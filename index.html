@@ -424,6 +424,7 @@
       <div id="stores-editor"></div>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
         <button class="btn btn-secondary btn-sm" onclick="addStoreRow()">+ Добавить</button>
+        <button class="btn btn-primary btn-sm" onclick="saveStoresOnly()">💾 Сохранить магазины</button>
       </div>
     </div>
 
@@ -597,8 +598,10 @@ function loadSettingsFromCache() {
     const s = localStorage.getItem('fbsm_stores_cache');
     appStores = s ? JSON.parse(s) : getDefaultStores();
     appPin    = localStorage.getItem('fbsm_pin_cache') || '1234';
-    const pc  = localStorage.getItem('fbsm_plans_cache');
-    appPlans  = pc ? JSON.parse(pc) : [];
+    try {
+      const pc = localStorage.getItem('fbsm_plans_cache');
+      appPlans = pc ? JSON.parse(pc) : [];
+    } catch(e) { appPlans = []; }
   } catch {
     appStores = getDefaultStores();
     appPin    = '1234';
@@ -1127,39 +1130,64 @@ function renderPlansEditor() {
 function renderPlansValues() {
   const el = document.getElementById('plans-values');
   if (!el) return;
-  if (!appStores.length) { el.innerHTML = '<div style="color:var(--gray-400);font-size:12px">Сначала добавьте магазины</div>'; return; }
-  let html = '';
-  appStores.forEach((s, si) => {
-    if (!s.name) return;
+  const validStores = appStores.filter(s => s.name);
+  if (!validStores.length) {
+    el.innerHTML = '<div style="color:var(--gray-400);font-size:12px;padding:8px 0">Сначала добавьте магазины выше</div>';
+    return;
+  }
+  let html = '<div style="background:var(--gray-100);border-radius:8px;padding:10px;margin-bottom:8px">';
+  html += '<div style="font-size:11px;font-weight:800;color:var(--gray-600);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">';
+  const monthNames = ['','Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  html += monthNames[planMonth] + ' ' + planYear + '</div>';
+  validStores.forEach((s, si) => {
     const existing = appPlans.find(p => p.store===s.name && parseInt(p.month)===planMonth && parseInt(p.year)===planYear);
     const val = existing ? existing.plan : '';
     html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">';
     html += '<div style="flex:1;font-size:12px;font-weight:600;color:var(--dark)">' + escHtml(s.name) + '</div>';
-    html += '<input class="field-input" type="number" placeholder="0 ₸" style="width:140px;font-size:13px;font-weight:700" ';
+    html += '<input class="field-input" type="number" placeholder="не задан" style="width:150px;font-size:13px;font-weight:700" ';
     html += 'value="' + (val||'') + '" ';
     html += 'id="planval-' + si + '" />';
     html += '</div>';
   });
+  html += '</div>';
+  // Показать все сохранённые планы
+  const savedPlans = appPlans.filter(p => p.plan > 0).sort((a,b) => a.year!==b.year ? a.year-b.year : a.month-b.month);
+  if (savedPlans.length) {
+    html += '<div style="font-size:11px;font-weight:800;color:var(--gray-600);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Все сохранённые планы</div>';
+    savedPlans.forEach(p => {
+      html += '<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--gray-200)">';
+      html += '<span style="color:var(--gray-600)">' + escHtml(p.store) + ' — ' + monthNames[p.month] + ' ' + p.year + '</span>';
+      html += '<span style="font-weight:700">' + parseFloat(p.plan).toLocaleString("ru") + ' ₸</span>';
+      html += '</div>';
+    });
+  }
   el.innerHTML = html;
 }
 
 function collectPlans() {
-  // Собрать значения из текущего открытого периода
-  const plans = [...appPlans]; // начать с существующих планов
+  // Начать с копии существующих планов
+  const plans = JSON.parse(JSON.stringify(appPlans));
+  const validStores = appStores.filter(s => s.name);
 
-  appStores.forEach((s, si) => {
-    if (!s.name) return;
+  validStores.forEach((s, si) => {
     const el = document.getElementById('planval-' + si);
     if (!el) return;
     const val = parseFloat(el.value) || 0;
-    if (!val) return;
 
-    // Найти и обновить или добавить
-    const idx = plans.findIndex(p => p.store===s.name && parseInt(p.month)===planMonth && parseInt(p.year)===planYear);
-    if (idx >= 0) {
-      plans[idx] = { store: s.name, month: planMonth, year: planYear, plan: val };
-    } else {
-      plans.push({ store: s.name, month: planMonth, year: planYear, plan: val });
+    // Найти и обновить или добавить (даже если 0 - для явного удаления)
+    const idx = plans.findIndex(p =>
+      p.store === s.name &&
+      parseInt(p.month) === planMonth &&
+      parseInt(p.year)  === planYear
+    );
+    if (val > 0) {
+      if (idx >= 0) {
+        plans[idx] = { store: s.name, month: planMonth, year: planYear, plan: val };
+      } else {
+        plans.push({ store: s.name, month: planMonth, year: planYear, plan: val });
+      }
+    } else if (idx >= 0) {
+      plans.splice(idx, 1); // удалить если 0
     }
   });
 
@@ -1177,6 +1205,28 @@ function addStoreRow(){
   appStores.push({name:'',manager:''});
   renderStoresEditor();
   buildStoreSelect();
+}
+
+async function saveStoresOnly() {
+  const apiUrl = localStorage.getItem('fbsm_api_url');
+  if (!apiUrl) { showToast('Нет подключения', 'error'); return; }
+  const updated = appStores.map((s,i) => ({
+    name:   (document.getElementById('st-n-'+i)?.value||'').trim()||s.name,
+    manager:(document.getElementById('st-m-'+i)?.value||'').trim()||'',
+  })).filter(s => s.name);
+  try {
+    const resp = await fetch(apiUrl, { method:'POST', body: JSON.stringify({
+      action:'saveSettings', stores: updated, pin: appPin, plans: appPlans
+    })});
+    const r = await resp.json();
+    if (r.ok) {
+      appStores = updated;
+      localStorage.setItem('fbsm_stores_cache', JSON.stringify(updated));
+      buildStoreSelect();
+      renderStoresEditor();
+      showToast('✅ Магазины сохранены', 'success');
+    } else showToast('⚠️ ' + (r.error||'Ошибка'), 'error');
+  } catch { showToast('📵 Нет связи', 'error'); }
 }
 
 async function saveSettingsToSheets(){
