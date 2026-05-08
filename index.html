@@ -1143,13 +1143,13 @@ function renderPlansEditor() {
 
   let html = '<div style="display:flex;gap:8px;margin-bottom:14px;align-items:center">';
   html += '<div><div class="field-label" style="margin-bottom:4px">Год</div>';
-  html += '<select class="field-input" style="width:100px" onchange="switchPlanPeriod('year',this.value)">';
+  html += '<select class="field-input" style="width:100px" onchange="switchPlanPeriod(\'year\',this.value)">';
   years.forEach(y => {
     html += '<option value="' + y + '"' + (y===planYear?' selected':'') + '>' + y + '</option>';
   });
   html += '</select></div>';
   html += '<div><div class="field-label" style="margin-bottom:4px">Месяц</div>';
-  html += '<select class="field-input" style="width:140px" onchange="switchPlanPeriod('month',this.value)">';
+  html += '<select class="field-input" style="width:140px" onchange="switchPlanPeriod(\'month\',this.value)">';
   monthNames.forEach((mn, i) => {
     html += '<option value="' + (i+1) + '"' + ((i+1)===planMonth?' selected':'') + '>' + mn + '</option>';
   });
