@@ -1150,16 +1150,33 @@ function renderPlansValues() {
     html += '</div>';
   });
   html += '</div>';
-  // Показать все сохранённые планы
+  // Показать все сохранённые планы, сгруппированные по месяцам
   const savedPlans = appPlans.filter(p => p.plan > 0).sort((a,b) => a.year!==b.year ? a.year-b.year : a.month-b.month);
   if (savedPlans.length) {
-    html += '<div style="font-size:11px;font-weight:800;color:var(--gray-600);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Все сохранённые планы</div>';
+    html += '<div style="margin-top:12px"><div style="font-size:11px;font-weight:800;color:var(--gray-600);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Все сохранённые планы</div>';
+    // Группировка по месяцу/году
+    const groups = {};
     savedPlans.forEach(p => {
-      html += '<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--gray-200)">';
-      html += '<span style="color:var(--gray-600)">' + escHtml(p.store) + ' — ' + monthNames[p.month] + ' ' + p.year + '</span>';
-      html += '<span style="font-weight:700">' + parseFloat(p.plan).toLocaleString("ru") + ' ₸</span>';
+      const key = p.year + '-' + String(p.month).padStart(2,'0');
+      if (!groups[key]) groups[key] = { month: p.month, year: p.year, items: [] };
+      groups[key].items.push(p);
+    });
+    Object.keys(groups).sort().forEach(key => {
+      const g = groups[key];
+      html += '<div style="margin-bottom:10px">';
+      html += '<div style="font-size:11px;font-weight:800;color:var(--blue);margin-bottom:4px;padding:4px 8px;background:var(--blue-light);border-radius:6px">';
+      html += monthNames[g.month] + ' ' + g.year + '</div>';
+      g.items.forEach(p => {
+        html += '<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 8px;border-bottom:1px solid var(--gray-200)">';
+        html += '<span style="color:var(--gray-600)">' + escHtml(p.store) + '</span>';
+        html += '<span style="font-weight:700;color:var(--dark)">' + parseFloat(p.plan).toLocaleString("ru") + ' ₸</span>';
+        html += '</div>';
+      });
       html += '</div>';
     });
+    html += '</div>';
+  } else {
+    html += '<div style="margin-top:8px;font-size:11px;color:var(--gray-400);font-style:italic">Нет сохранённых планов</div>';
   }
   el.innerHTML = html;
 }
@@ -1194,6 +1211,11 @@ function collectPlans() {
   return plans;
 }
 function deleteStore(i){
+  // Сохранить текущие введённые значения перед удалением
+  appStores = appStores.map((s,idx) => ({
+    name:   (document.getElementById('st-n-'+idx)?.value||'').trim() || s.name,
+    manager:(document.getElementById('st-m-'+idx)?.value||'').trim() || s.manager||'',
+  }));
   const name = appStores[i]?.name;
   appStores.splice(i,1);
   // Убрать планы этого магазина
@@ -1202,6 +1224,11 @@ function deleteStore(i){
   buildStoreSelect();
 }
 function addStoreRow(){
+  // Сохранить текущие введённые значения перед добавлением
+  appStores = appStores.map((s,i) => ({
+    name:   (document.getElementById('st-n-'+i)?.value||'').trim() || s.name,
+    manager:(document.getElementById('st-m-'+i)?.value||'').trim() || s.manager||'',
+  }));
   appStores.push({name:'',manager:''});
   renderStoresEditor();
   buildStoreSelect();
@@ -1234,8 +1261,10 @@ async function saveSettingsToSheets(){
   if(!apiUrl){showToast('Нет подключения','error');return;}
   const updated=appStores.map((s,i)=>({
     name:   (document.getElementById('st-n-'+i)?.value||'').trim()||s.name,
-    manager:(document.getElementById('st-m-'+i)?.value||'').trim()||'',
+    manager:(document.getElementById('st-m-'+i)?.value||'').trim()||s.manager||'',
   })).filter(s=>s.name);
+  // Обновить appStores сразу чтобы collectPlans использовал актуальные имена
+  appStores = updated;
   const pin1=document.getElementById('new-pin')?.value;
   const pin2=document.getElementById('new-pin2')?.value;
   let newPin=appPin;
