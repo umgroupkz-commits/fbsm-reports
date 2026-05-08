@@ -196,7 +196,7 @@
   .pin-input:focus{border-color:var(--blue);}
   .config-section{background:white;border-radius:var(--radius);padding:14px;margin-bottom:12px;box-shadow:var(--shadow);}
   .config-title{font-size:12px;font-weight:800;color:var(--blue);margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px;}
-  .store-row{display:grid;grid-template-columns:1.5fr 1fr 80px 28px;gap:6px;margin-bottom:8px;align-items:end;}
+  .store-row{display:grid;grid-template-columns:1.5fr 1fr 28px;gap:6px;margin-bottom:8px;align-items:end;}
   .url-status{font-size:11px;margin-top:5px;font-weight:600;}
   .url-status.ok{color:var(--green);}
   .info-box{background:var(--blue-light);border-radius:10px;padding:11px;margin-bottom:10px;font-size:12px;line-height:1.6;color:var(--blue);font-weight:500;}
@@ -415,16 +415,24 @@
     <div class="config-section">
       <div class="config-title">🏪 Магазины, управляющие, планы</div>
       <div class="info-box">Данные хранятся в Google Sheets → лист «⚙️ Настройки». Изменения сохраняются для всех устройств.</div>
-      <div style="display:grid;grid-template-columns:1.5fr 1fr 80px 28px;gap:6px;margin-bottom:6px">
+
+      <div style="display:grid;grid-template-columns:1.5fr 1fr 28px;gap:6px;margin-bottom:6px">
         <div class="field-label">Магазин</div>
         <div class="field-label">Управляющий</div>
-        <div class="field-label">План ₸</div>
         <div></div>
       </div>
       <div id="stores-editor"></div>
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
         <button class="btn btn-secondary btn-sm" onclick="addStoreRow()">+ Добавить</button>
-        <button class="btn btn-primary btn-sm" onclick="saveSettingsToSheets()">💾 Сохранить в Sheets</button>
+      </div>
+    </div>
+
+    <div class="config-section">
+      <div class="config-title">📅 Планы продаж по месяцам</div>
+      <div class="info-box">Укажите план для каждого магазина на ближайшие 3 месяца. Планы хранятся в Google Sheets.</div>
+      <div id="plans-editor"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="saveSettingsToSheets()">💾 Сохранить всё в Sheets</button>
         <button class="btn btn-secondary btn-sm" onclick="loadSettingsFromSheets()">🔄 Обновить из Sheets</button>
       </div>
     </div>
@@ -503,6 +511,7 @@ let staffCount = 0;
 let monthAccum = 0;
 let monthPlan  = 0;
 let appStores  = [];   // загружается из Sheets
+let appPlans   = [];   // планы по месяцам
 let appPin     = '1234';
 let settingsUnlocked = false;
 
@@ -568,9 +577,11 @@ async function loadSettingsFromSheets(silent = false) {
 
   appStores = result.stores || [];
   appPin    = result.pin    || '1234';
+  appPlans  = result.plans  || [];
 
   // Кэшировать
   localStorage.setItem('fbsm_stores_cache', JSON.stringify(appStores));
+  localStorage.setItem('fbsm_plans_cache', JSON.stringify(appPlans));
   localStorage.setItem('fbsm_pin_cache', appPin);
 
   buildStoreSelect();
@@ -582,6 +593,8 @@ function loadSettingsFromCache() {
     const s = localStorage.getItem('fbsm_stores_cache');
     appStores = s ? JSON.parse(s) : getDefaultStores();
     appPin    = localStorage.getItem('fbsm_pin_cache') || '1234';
+    const pc  = localStorage.getItem('fbsm_plans_cache');
+    appPlans  = pc ? JSON.parse(pc) : [];
   } catch {
     appStores = getDefaultStores();
     appPin    = '1234';
@@ -591,10 +604,10 @@ function loadSettingsFromCache() {
 
 function getDefaultStores() {
   return [
-    { name:'Атамекен (Алматы)',               manager:'', plan:0 },
-    { name:'Асфендиярова / Сыгынак (Астана)', manager:'', plan:0 },
-    { name:'Манаса (Астана)',                 manager:'', plan:0 },
-    { name:'Республика (Астана)',             manager:'', plan:0 },
+    { name:'Атакент (Алматы)', manager:'' },
+    { name:'Асф. (Астана)', manager:'' },
+    { name:'Манаса (Астана)', manager:'' },
+    { name:'Респ. (Астана)', manager:'' },
     { name:'ГрандСтор (Караганда)',           manager:'', plan:0 },
   ];
 }
@@ -648,6 +661,16 @@ function buildStoreSelect() {
   }
 }
 
+function getPlanForMonth(storeName, month, year) {
+  for (let i = 0; i < appPlans.length; i++) {
+    const p = appPlans[i];
+    if (p.store === storeName && parseInt(p.month) === parseInt(month) && parseInt(p.year) === parseInt(year)) {
+      return parseFloat(p.plan) || 0;
+    }
+  }
+  return 0;
+}
+
 async function onStoreChange() {
   const idx = document.getElementById('store').value;
   if (idx === '') {
@@ -658,7 +681,23 @@ async function onStoreChange() {
   localStorage.setItem('fbsm_last_store', idx);
   const store = appStores[parseInt(idx)];
   document.getElementById('manager').value = store.manager || '';
-  monthPlan = store.plan || 0;
+  // Получить план из appPlans для текущего месяца
+  const now2 = new Date();
+  monthPlan = getPlanForMonth(store.name, now2.getMonth()+1, now2.getFullYear());
+  // Если нет плана в appPlans - попробовать запросить из Sheets
+  if (!monthPlan) {
+    const apiUrl2 = localStorage.getItem('fbsm_api_url');
+    if (apiUrl2) {
+      try {
+        const pr = await fetch(apiUrl2, { method:'POST', body: JSON.stringify({
+          action:'getPlan', store: store.name,
+          month: now2.getMonth()+1, year: now2.getFullYear()
+        })});
+        const pj = await pr.json();
+        if (pj.ok) monthPlan = pj.plan || 0;
+      } catch(e) {}
+    }
+  }
 
   const now = new Date();
   document.getElementById('month-card').style.display = '';
@@ -1044,12 +1083,68 @@ function renderStoresEditor(){
     <div class="store-row">
       <input class="field-input" type="text" placeholder="Название" value="${escHtml(s.name)}" id="st-n-${i}" style="font-size:12px"/>
       <input class="field-input" type="text" placeholder="ФИО" value="${escHtml(s.manager||'')}" id="st-m-${i}" style="font-size:12px"/>
-      <input class="field-input" type="number" placeholder="0" value="${s.plan||''}" id="st-p-${i}" style="font-size:12px"/>
       <button class="btn-remove" onclick="deleteStore(${i})">✕</button>
     </div>`).join('');
+  renderPlansEditor();
+}
+
+function renderPlansEditor() {
+  const el = document.getElementById('plans-editor');
+  if (!el) return;
+  const now = new Date();
+  // Показать планы на ближайшие 3 месяца для каждого магазина
+  const months = [];
+  for (let i = 0; i < 3; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    months.push({ month: d.getMonth()+1, year: d.getFullYear(),
+      label: d.toLocaleDateString('ru-RU', { month:'long', year:'numeric' }) });
+  }
+  let html = '';
+  months.forEach(m => {
+    html += '<div style="margin-bottom:14px"><div class="field-label" style="margin-bottom:6px;color:var(--blue)">' + m.label.toUpperCase() + '</div>';
+    appStores.forEach((s, si) => {
+      if (!s.name) return;
+      const existing = appPlans.find(p => p.store===s.name && parseInt(p.month)===m.month && parseInt(p.year)===m.year);
+      const val = existing ? existing.plan : '';
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
+      html += '<div style="flex:1;font-size:12px;font-weight:600;color:var(--dark)">' + escHtml(s.name) + '</div>';
+      html += '<input class="field-input" type="number" placeholder="0 ₸" style="width:130px;font-size:12px" ';
+      html += 'value="' + (val||'') + '" ';
+      html += 'id="plan-' + m.year + '-' + m.month + '-' + si + '" />';
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+  el.innerHTML = html;
+}
+
+function collectPlans() {
+  const plans = [];
+  const now = new Date();
+  for (let i = 0; i < 3; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const month = d.getMonth()+1, year = d.getFullYear();
+    appStores.forEach((s, si) => {
+      if (!s.name) return;
+      const el = document.getElementById('plan-' + year + '-' + month + '-' + si);
+      if (el && el.value) {
+        plans.push({ store: s.name, month, year, plan: parseFloat(el.value)||0 });
+      }
+    });
+  }
+  // Сохранить также планы которые уже есть в appPlans но не в текущих 3 месяцах
+  const now2 = new Date();
+  appPlans.forEach(p => {
+    const d = new Date(parseInt(p.year), parseInt(p.month)-1, 1);
+    const monthsDiff = (d.getFullYear() - now2.getFullYear())*12 + (d.getMonth() - now2.getMonth());
+    if (monthsDiff < 0 || monthsDiff >= 3) {
+      plans.push(p); // сохранить исторические планы
+    }
+  });
+  return plans;
 }
 function deleteStore(i){appStores.splice(i,1);renderStoresEditor();}
-function addStoreRow(){appStores.push({name:'',manager:'',plan:0});renderStoresEditor();}
+function addStoreRow(){appStores.push({name:'',manager:''});renderStoresEditor();}
 
 async function saveSettingsToSheets(){
   const apiUrl=localStorage.getItem('fbsm_api_url');
@@ -1057,14 +1152,16 @@ async function saveSettingsToSheets(){
   const updated=appStores.map((s,i)=>({
     name:   document.getElementById(`st-n-${i}`)?.value.trim()||s.name,
     manager:document.getElementById(`st-m-${i}`)?.value.trim()||'',
-    plan:   parseFloat(document.getElementById(`st-p-${i}`)?.value)||0,
   })).filter(s=>s.name);
   const pin1=document.getElementById('new-pin')?.value;
   const pin2=document.getElementById('new-pin2')?.value;
   let newPin=appPin;
   if(pin1&&pin1===pin2&&/^\d{4}$/.test(pin1)) newPin=pin1;
   try{
-    const resp=await fetch(apiUrl,{method:'POST',body:JSON.stringify({action:'saveSettings',stores:updated,pin:newPin})});
+    const collectedPlans = collectPlans();
+    appPlans = collectedPlans;
+    localStorage.setItem('fbsm_plans_cache', JSON.stringify(collectedPlans));
+    const resp=await fetch(apiUrl,{method:'POST',body:JSON.stringify({action:'saveSettings',stores:updated,pin:newPin,plans:collectedPlans})});
     const r=await resp.json();
     if(r.ok){
       appStores=updated; appPin=newPin;
