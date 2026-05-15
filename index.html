@@ -327,10 +327,7 @@
         <div class="field-label">Посетителей</div>
         <input type="number" class="field-input" id="visitors" placeholder="0" oninput="calcMetrics()"/>
       </div>
-      <div class="full">
-        <div class="field-label">💵 Остаток в подотчёте управляющего ₸</div>
-        <input type="number" class="field-input" id="cash-balance" placeholder="0" value="0"/>
-      </div>
+
     </div>
   </div>
 
@@ -1004,7 +1001,7 @@ function showReport(p){
 
   el.innerHTML=`
     <div class="summary-card"><div class="big-metric ${pClass}"><div><div class="bm-val">${p.monthPct}%</div><div class="bm-label">план месяца</div><div class="bm-sub">${(p.monthAccum||0).toLocaleString('ru')} ₸ из ${(p.monthPlan||0).toLocaleString('ru')} ₸</div></div><div style="font-size:44px">${emoji}</div></div></div>
-    <div class="summary-card"><div class="summary-title">Смена</div><div class="srow"><span class="skey">Сотрудников</span><span class="sval">${p.staffCount} чел.</span></div>${p.staffComment?`<div class="srow"><span class="skey">Состав</span><span class="sval">${p.staffComment}</span></div>`:''}<div class="srow"><span class="skey">💵 Остаток в подотчёте</span><span class="sval" style="font-weight:800;color:${(p.cashBalance||0)>0?'var(--orange)':'var(--green)'}">${(p.cashBalance||0).toLocaleString('ru')} ₸</span></div></div>
+    <div class="summary-card"><div class="summary-title">Смена</div><div class="srow"><span class="skey">Сотрудников</span><span class="sval">${p.staffCount} чел.</span></div>${p.staffComment?`<div class="srow"><span class="skey">Состав</span><span class="sval">${p.staffComment}</span></div>`:''}</div>
     <div class="summary-card"><div class="summary-title">Цифры дня</div><div class="srow"><span class="skey">Выручка</span><span class="sval">${p.revenue.toLocaleString('ru')} ₸</span></div><div class="srow"><span class="skey">Ср. чек</span><span class="sval">${p.avgCheck.toLocaleString('ru')} ₸</span></div><div class="srow"><span class="skey">Чеки</span><span class="sval">${p.checks}</span></div><div class="srow"><span class="skey">Посетители</span><span class="sval">${p.visitors}</span></div><div class="srow"><span class="skey">Конверсия</span><span class="sval">${p.conv}%</span></div></div>
     <div class="summary-card"><div class="summary-title">✅ Задачи смены</div>${tasksHtml}</div>
     <div class="summary-card"><div class="summary-title">↩️ Возвраты</div>${returnsHtml}</div>
@@ -1016,7 +1013,6 @@ function showReport(p){
 function buildBitrixText(p,dateStr,emoji){
   let t=`📊 ЕЖЕДНЕВНЫЙ ОТЧЁТ FBSM\n━━━━━━━━━━━━━━━━━━━━━━━\n📍 ${p.store}\n📅 ${dateStr}\n👤 ${p.manager}\n\n${emoji} ПЛАН МЕСЯЦА: ${p.monthPct}%\n   Накоплено: ${(p.monthAccum||0).toLocaleString('ru')} ₸ из ${(p.monthPlan||0).toLocaleString('ru')} ₸\n\n👥 СМЕНА: ${p.staffCount} чел.`;
   if(p.staffComment) t+=` (${p.staffComment})`;
-  t+=`\n\n💵 ОСТАТОК В ПОДОТЧЁТЕ: ${(p.cashBalance||0).toLocaleString('ru')} ₸`;
   t+=`\n\n📈 ЦИФРЫ ДНЯ:\n💰 Выручка: ${p.revenue.toLocaleString('ru')} ₸\n🧾 Чеки: ${p.checks} | Ср. чек: ${p.avgCheck.toLocaleString('ru')} ₸\n👥 Посетители: ${p.visitors} | Конверсия: ${p.conv}%`;
   if(p.tasks.length){
     const done=p.tasks.filter(t=>t.done).length;
@@ -1372,7 +1368,7 @@ function resetForm(){
   if(!confirm('Сбросить форму?')) return;
   checkState={}; tasks=[]; returns=[]; staffCount=0;
   document.getElementById('staff-count').textContent='0';
-  ['revenue','checks','visitors','incidents','staff-comment','cash-balance'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['revenue','checks','visitors','incidents','staff-comment'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   renderSections(); renderTasks(); renderReturns(); updateReturnCount(); calcMetrics();
 }
 function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
