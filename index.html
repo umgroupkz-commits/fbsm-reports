@@ -324,6 +324,10 @@
         <input type="number" class="field-input" id="checks" placeholder="0" oninput="calcMetrics()"/>
       </div>
       <div>
+        <div class="field-label">Продано единиц товара</div>
+        <input type="number" class="field-input" id="items-sold" placeholder="0" oninput="calcMetrics()"/>
+      </div>
+      <div>
         <div class="field-label">Посетителей</div>
         <input type="number" class="field-input" id="visitors" placeholder="0" oninput="calcMetrics()"/>
       </div>
@@ -343,6 +347,16 @@
     <div class="metric-card">
       <div class="metric-label">Конверсия</div>
       <div class="metric-value" id="m-conv">—</div>
+    </div>
+  </div>
+  <div class="metrics-row" style="grid-template-columns:1fr 1fr;margin-top:-6px">
+    <div class="metric-card">
+      <div class="metric-label">Ед. товара</div>
+      <div class="metric-value" id="m-items">—</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">UPT (ед./чек)</div>
+      <div class="metric-value" id="m-upt">—</div>
     </div>
   </div>
 
@@ -450,6 +464,46 @@
     </div>
 
     <div class="config-section">
+      <div class="config-title">📊 Корректировка факта по месяцу</div>
+      <div class="info-box">Если отчёты велись не с начала месяца или были пропуски — скорректируйте фактическую выручку вручную. Это значение будет использоваться как база для расчёта % плана.</div>
+      <div class="grid2" style="margin-bottom:10px">
+        <div>
+          <div class="field-label">Магазин</div>
+          <select class="field-input" id="corr-store" style="font-size:13px">
+            <option value="">— выбрать —</option>
+          </select>
+        </div>
+        <div>
+          <div class="field-label">Месяц / Год</div>
+          <div style="display:flex;gap:6px">
+            <select class="field-input" id="corr-month" style="font-size:13px;flex:1">
+              <option value="1">Январь</option><option value="2">Февраль</option>
+              <option value="3">Март</option><option value="4">Апрель</option>
+              <option value="5">Май</option><option value="6">Июнь</option>
+              <option value="7">Июль</option><option value="8">Август</option>
+              <option value="9">Сентябрь</option><option value="10">Октябрь</option>
+              <option value="11">Ноябрь</option><option value="12">Декабрь</option>
+            </select>
+            <select class="field-input" id="corr-year" style="font-size:13px;width:80px">
+              <option value="2025">2025</option>
+              <option value="2026" selected>2026</option>
+              <option value="2027">2027</option>
+            </select>
+          </div>
+        </div>
+        <div class="full">
+          <div class="field-label">Фактическая выручка за период до сегодня ₸</div>
+          <input type="number" class="field-input" id="corr-amount" placeholder="0"/>
+        </div>
+        <div class="full" id="corr-current" style="font-size:11px;color:var(--gray-600);font-style:italic;padding:4px 0"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary btn-sm" onclick="loadCorrection()">🔄 Загрузить текущее</button>
+        <button class="btn btn-primary btn-sm" onclick="saveCorrection()">💾 Сохранить</button>
+      </div>
+    </div>
+
+    <div class="config-section">
       <div class="config-title">🚪 Выход</div>
       <button class="btn btn-secondary" style="width:100%" onclick="lockSettings()">Заблокировать настройки</button>
     </div>
@@ -469,37 +523,44 @@
 // ════════════════════════════════════════════════════════
 const SECTIONS = [
   { id:'open', icon:'🔓', title:'Открытие магазина', color:'#1F4E79', items:[
-    { id:'open_arrival',    text:'Прибыть в магазин за 15 мин до открытия',       ph:'Время прихода, состав смены' },
-    { id:'open_appearance', text:'Проверить внешний вид сотрудников',              ph:'Все соответствуют / кто не соответствует и что сделано' },
-    { id:'open_cleanliness',text:'Чистота зала, витрин, примерочных',             ph:'Порядок / что было не так, кто устранил' },
-    { id:'open_tags',       text:'Ценники и маячки на товаре в порядке',           ph:'Всё ок / что поправили' },
-    { id:'open_equipment',  text:'Освещение и оборудование работают',              ph:'Всё ок / что не работало, что сделано' },
-    { id:'open_cashier',    text:'Касса открыта',                                  ph:'Открыта в ЧЧ:ММ' },
+    { id:'open_arrival',    text:'Прибыть в магазин за 15 мин до открытия',       ph:'Время прихода: ЧЧ:ММ, состав смены: ..., ворота открыты, отметился на охране' },
+    { id:'open_appearance', text:'Проверить внешний вид сотрудников',              ph:'Все соответствуют стандарту / кто не соответствует и что сделано' },
+    { id:'open_cleanliness',text:'Уборка, чистота зала, витрин, примерочных',     ph:'Влажная уборка сделана, мусор вынесен, примерочные в порядке / замечания: ...' },
+    { id:'open_tags',       text:'Ценники, этикетки, алармы на товаре проверены', ph:'Ценники ок, алармы на вещах/обуви проверены, этикетки 50% на месте / что исправили' },
+    { id:'open_equipment',  text:'Освещение и оборудование работают',              ph:'Свет включён, ТВ/лого на кассе включены, музыка включена, всё работает / что не работало' },
+    { id:'open_cashier',    text:'Пересчёт наличных, касса открыта',              ph:'Наличных по факту: ₸ ____, касса открыта в ЧЧ:ММ, фото отправлено в группу' },
     { id:'open_counter',    text:'Счётчик посетителей обнулён',                    ph:'Обнулён в ЧЧ:ММ' },
+  ]},
+  { id:'online', icon:'📱', title:'Онлайн и соцсети', color:'#5B3F8C', items:[
+    { id:'online_direct',   text:'Проверить Direct (TikTok / Instagram)',          ph:'Сообщений: ___, ответили на все / остались без ответа: ...' },
+    { id:'online_stories',  text:'Сторис для соцсетей сделаны',                   ph:'Опубликованы сторис: ... / не публиковали — причина: ...' },
+    { id:'online_reels',    text:'Рилс / контент опубликован (если запланировано)',ph:'Опубликован / не запланировано на сегодня' },
+    { id:'online_live',     text:'Эфир проведён (если запланировано)',             ph:'Был в ЧЧ:ММ, просмотров: ___, заказов: ___ / не запланировано' },
+    { id:'online_orders',   text:'Онлайн-заказы: разобраны, посылки подготовлены',ph:'Заказов: ___, посылок подготовлено: ___, треки высланы покупателям / заказов не было' },
   ]},
   { id:'day', icon:'📊', title:'Контроль в течение дня', color:'#2E75B6', items:[
     { id:'day_service',   text:'Качество обслуживания покупателей',                ph:'Замечаний нет / что исправили' },
     { id:'day_conflicts', text:'Конфликтные ситуации с клиентами',                 ph:'Конфликтов не было / ситуация: ..., решили: ...' },
-    { id:'day_order',     text:'Порядок в зале и корректность выкладки',           ph:'Всё ок / что поправили' },
+    { id:'day_order',     text:'Порядок в зале, глажка, выкладка актуальна',       ph:'Порядок поддерживается, глажка проведена / что требовало внимания' },
     { id:'day_schedule',  text:'График смен и перерывы соблюдены',                 ph:'По графику / отклонения: ...' },
   ]},
   { id:'cash', icon:'💰', title:'Касса и финансы', color:'#1D6F42', items:[
     { id:'cash_ops',        text:'Кассовые операции без нарушений',                ph:'Без нарушений / что было: ...' },
-    { id:'cash_collection', text:'Инкассация (если была)',                         ph:'Не было / была в ЧЧ:ММ, сумма ₸ ____, зафиксировано' },
-    { id:'cash_reconcile',  text:'Сверка кассы выполнена',                         ph:'Расхождений нет / расхождение ₸ ____, причина: ...' },
-    { id:'cash_close',      text:'Кассовая смена закрыта',                         ph:'Закрыта в ЧЧ:ММ, итог ₸ ____' },
+    { id:'cash_collection', text:'Инкассация (если была)',                         ph:'Не было / была в ЧЧ:ММ, сумма ₸ ____, зафиксировано в журнале' },
+    { id:'cash_reconcile',  text:'Сверка кассы, X/Z-отчёт, фото в группу',        ph:'Расхождений нет, X/Z-отчёт сформирован, фото терминалов отправлено / расхождение: ...' },
+    { id:'cash_close',      text:'Смена закрыта в 1С, наличные пересчитаны',      ph:'Закрыта в ЧЧ:ММ, наличных по факту: ₸ ____, таблица в Google заполнена' },
   ]},
   { id:'goods', icon:'📦', title:'Товар и склад', color:'#7B3F00', items:[
     { id:'goods_receive',  text:'Приёмка товара (если была поставка)',             ph:'Поставки не было / принято ___ ед., накладная № ___, расхождений нет/есть' },
-    { id:'goods_revision', text:'Мини-ревизия по наименованиям',                   ph:'Проверены: (перечислить позиции/группы). Замечания: ...' },
-    { id:'goods_display',  text:'Выкладка скорректирована при необходимости',      ph:'Изменений не требовалось / что переложили' },
+    { id:'goods_revision', text:'Мини-ревизия, полки склада в порядке',            ph:'Проверены позиции: ..., полки склада аккуратны, товар со склада вынесен в зал / замечания: ...' },
+    { id:'goods_display',  text:'Выкладка скорректирована при необходимости',      ph:'Изменений не требовалось / что переложили, таблички на рейлах проверены' },
   ]},
   { id:'close', icon:'🔒', title:'Закрытие магазина', color:'#424242', items:[
-    { id:'close_counter',  text:'Показания счётчика зафиксированы в журнале',      ph:'Посетителей за день: ____ (записано)' },
-    { id:'close_hall',     text:'Зал, склад, примерочные проверены',               ph:'Всё в порядке / что устранили' },
-    { id:'close_property', text:'Имущество в сохранности, зоны доступа закрыты',  ph:'Всё ок' },
-    { id:'close_briefing', text:'Итоговый инструктаж команде проведён',            ph:'Что обсудили' },
-    { id:'close_store',    text:'Магазин закрыт в установленное время',            ph:'Закрыт в ЧЧ:ММ' },
+    { id:'close_counter',  text:'Показания счётчика зафиксированы',                ph:'Посетителей за день: ____ (записано в журнал / таблицу)' },
+    { id:'close_clean',    text:'Уборка: мусор собран, качество уборки проверено', ph:'Мусор собран по залу и складу, уборка техперсонала проверена / замечания: ...' },
+    { id:'close_hall',     text:'Зал, склад, примерочные проверены перед уходом',  ph:'Всё в порядке / что устранили' },
+    { id:'close_property', text:'Оборудование выключено, магазин закрыт',          ph:'Ноутбук выключен, ТВ/лого выключены, свет выключен везде, ворота закрыты, отметился на охране' },
+    { id:'close_report',   text:'Отчёт в группу и план на завтра отправлены',      ph:'Отчёт за день отправлен в группу, план на завтра подготовлен' },
   ]},
 ];
 
@@ -717,14 +778,35 @@ async function onStoreChange() {
   if (apiUrl) {
     setSyncStatus('loading');
     try {
-      const resp = await fetch(apiUrl, { method:'POST', body: JSON.stringify({
-        action:'getMonthAccum', store: store.name,
-        month: now.getMonth()+1, year: now.getFullYear(),
-        today: now.toISOString().split('T')[0]
+      // Сначала проверить корректировку
+      const corrResp = await fetch(apiUrl, { method:'POST', body: JSON.stringify({
+        action:'getCorrection', store: store.name,
+        month: now.getMonth()+1, year: now.getFullYear()
       })});
-      const r = await resp.json();
-      if (r.ok) { monthAccum = parseFloat(r.accum)||0; setSyncStatus('ok'); }
-      else throw new Error(r.error);
+      const corrR = await corrResp.json();
+      if (corrR.ok && corrR.amount > 0) {
+        // Есть корректировка — берём её + отчёты после даты корректировки
+        const accumResp = await fetch(apiUrl, { method:'POST', body: JSON.stringify({
+          action:'getMonthAccum', store: store.name,
+          month: now.getMonth()+1, year: now.getFullYear(),
+          today: now.toISOString().split('T')[0],
+          afterDate: corrR.date || null
+        })});
+        const accumR = await accumResp.json();
+        // Используем корректировку как базу
+        monthAccum = parseFloat(corrR.amount) + (accumR.ok ? parseFloat(accumR.accum)||0 : 0);
+        setSyncStatus('ok');
+      } else {
+        // Нет корректировки — считаем автоматически
+        const resp = await fetch(apiUrl, { method:'POST', body: JSON.stringify({
+          action:'getMonthAccum', store: store.name,
+          month: now.getMonth()+1, year: now.getFullYear(),
+          today: now.toISOString().split('T')[0]
+        })});
+        const r = await resp.json();
+        if (r.ok) { monthAccum = parseFloat(r.accum)||0; setSyncStatus('ok'); }
+        else throw new Error(r.error);
+      }
     } catch {
       monthAccum = parseFloat(localStorage.getItem(`fbsm_accum_${store.name}`)||'0');
       setSyncStatus('offline');
@@ -1368,7 +1450,7 @@ function resetForm(){
   if(!confirm('Сбросить форму?')) return;
   checkState={}; tasks=[]; returns=[]; staffCount=0;
   document.getElementById('staff-count').textContent='0';
-  ['revenue','checks','visitors','incidents','staff-comment'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['revenue','checks','visitors','items-sold','incidents','staff-comment'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   renderSections(); renderTasks(); renderReturns(); updateReturnCount(); calcMetrics();
 }
 function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
