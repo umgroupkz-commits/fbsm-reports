@@ -196,7 +196,7 @@
   .pin-input:focus{border-color:var(--blue);}
   .config-section{background:white;border-radius:var(--radius);padding:14px;margin-bottom:12px;box-shadow:var(--shadow);}
   .config-title{font-size:12px;font-weight:800;color:var(--blue);margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px;}
-  .store-row{display:grid;grid-template-columns:1.5fr 1fr 28px;gap:6px;margin-bottom:8px;align-items:end;}
+  .store-row{display:grid;grid-template-columns:1.5fr 1fr 70px 28px;gap:6px;margin-bottom:8px;align-items:end;}
   .url-status{font-size:11px;margin-top:5px;font-weight:600;}
   .url-status.ok{color:var(--green);}
   .info-box{background:var(--blue-light);border-radius:10px;padding:11px;margin-bottom:10px;font-size:12px;line-height:1.6;color:var(--blue);font-weight:500;}
@@ -431,9 +431,10 @@
       <div class="config-title">🏪 Магазины, управляющие, планы</div>
       <div class="info-box">Данные хранятся в Google Sheets → лист «⚙️ Настройки». Изменения сохраняются для всех устройств.</div>
 
-      <div style="display:grid;grid-template-columns:1.5fr 1fr 28px;gap:6px;margin-bottom:6px">
+      <div style="display:grid;grid-template-columns:1.5fr 1fr 70px 28px;gap:6px;margin-bottom:6px">
         <div class="field-label">Магазин</div>
         <div class="field-label">Управляющий</div>
+        <div class="field-label">Bitrix ID</div>
         <div></div>
       </div>
       <div id="stores-editor"></div>
@@ -1044,11 +1045,11 @@ async function submitReport() {
       const resp=await fetch(apiUrl,{method:'POST',body:JSON.stringify({action:'saveDaily',payload:flat})});
       const result=await resp.json();
       if(result.ok){
-        showToast('✅ Отправлено в Google Sheets','success');
+        showToast('✅ Отчёт отправлен в Sheets и Битрикс','success');
         localStorage.setItem(`fbsm_accum_${store.name}`,total);
         monthAccum=total; calcMetrics();
       } else showToast('⚠️ '+(result.error||'Ошибка'),'error');
-    } catch { showToast('📵 Нет связи — скопируйте отчёт вручную','error'); }
+    } catch { showToast('📵 Нет связи — попробуйте позже','error'); }
     finally { btn.textContent='📤 Отправить отчёт'; btn.disabled=false; }
   } else showToast('✅ Отчёт сформирован','success');
 }
@@ -1089,26 +1090,10 @@ function showReport(p){
     <div class="summary-card"><div class="summary-title">↩️ Возвраты</div>${returnsHtml}</div>
     <div class="summary-card"><div class="summary-title">📋 Чек-лист с комментариями</div>${checklistHtml}</div>
     ${p.incidents?`<div class="summary-card"><div class="summary-title">⚠️ Инциденты</div><div style="font-size:13px;line-height:1.6">${p.incidents}</div></div>`:''}
-    <div class="summary-card" style="border-left:4px solid var(--orange)"><div class="summary-title">📋 Текст для Битрикс</div><div style="font-size:12px;line-height:1.7;white-space:pre-wrap;background:var(--gray-100);padding:12px;border-radius:8px;font-family:monospace;max-height:340px;overflow-y:auto" id="bitrix-text">${buildBitrixText(p,dateStr,emoji)}</div><button class="btn btn-primary" style="margin-top:10px;width:100%" onclick="copyBitrix()">📋 Скопировать для Битрикс</button></div>`;
+`;
 }
 
-function buildBitrixText(p,dateStr,emoji){
-  let t=`📊 ЕЖЕДНЕВНЫЙ ОТЧЁТ FBSM\n━━━━━━━━━━━━━━━━━━━━━━━\n📍 ${p.store}\n📅 ${dateStr}\n👤 ${p.manager}\n\n${emoji} ПЛАН МЕСЯЦА: ${p.monthPct}%\n   Накоплено: ${(p.monthAccum||0).toLocaleString('ru')} ₸ из ${(p.monthPlan||0).toLocaleString('ru')} ₸\n\n👥 СМЕНА: ${p.staffCount} чел.`;
-  if(p.staffComment) t+=` (${p.staffComment})`;
-  t+=`\n\n📈 ЦИФРЫ ДНЯ:\n💰 Выручка: ${p.revenue.toLocaleString('ru')} ₸\n🧾 Чеки: ${p.checks} | Ср. чек: ${p.avgCheck.toLocaleString('ru')} ₸\n👥 Посетители: ${p.visitors} | Конверсия: ${p.conv}%`;
-  if(p.tasks.length){
-    const done=p.tasks.filter(t=>t.done).length;
-    t+=`\n\n✅ ЗАДАЧИ (${done}/${p.tasks.length}):`;
-    p.tasks.forEach(task=>{t+=`\n${task.done?'✅':'❌'} ${task.text||'—'}`;if(task.done&&task.result)t+=`\n   → ${task.result}`;if(!task.done)t+=`\n   → не выполнено`;});
-  }
-  if(p.returns.length){t+=`\n\n↩️ ВОЗВРАТЫ (${p.returns.length}):`;p.returns.forEach((r,i)=>{t+=`\n  ${i+1}. ${parseInt(r.qty)||1} ед./${(parseFloat(r.sum)||0).toLocaleString('ru')}₸`;if(r.reason)t+=`\n     Причина: ${r.reason}`;if(r.exchange)t+=`\n     Предложено: ${r.exchange}`;});}
-  else t+=`\n↩️ Возвратов нет`;
-  t+=`\n\n📋 ЧЕК-ЛИСТ:`;
-  SECTIONS.forEach(sec=>{t+=`\n\n${sec.icon} ${sec.title}:`;sec.items.forEach(item=>{const v=p.checkItems[item.id]||{checked:false,note:''};t+=`\n${v.checked?'✅':'❌'} ${item.text}`;if(v.note)t+=`\n   → ${v.note}`;});});
-  if(p.incidents)t+=`\n\n⚠️ ИНЦИДЕНТЫ:\n${p.incidents}`;
-  return t;
-}
-function copyBitrix(){navigator.clipboard.writeText(document.getElementById('bitrix-text').textContent).then(()=>showToast('Скопировано!','success'));}
+
 
 // ════════════════════════════════════════════════════════
 // HISTORY
@@ -1173,6 +1158,7 @@ function renderStoresEditor(){
     <div class="store-row">
       <input class="field-input" type="text" placeholder="Название" value="${escHtml(s.name)}" id="st-n-${i}" style="font-size:12px"/>
       <input class="field-input" type="text" placeholder="ФИО" value="${escHtml(s.manager||'')}" id="st-m-${i}" style="font-size:12px"/>
+      <input class="field-input" type="number" placeholder="ID" value="${s.bitrixId||''}" id="st-b-${i}" style="font-size:12px"/>
       <button class="btn-remove" onclick="deleteStore(${i})">✕</button>
     </div>`).join('');
   renderPlansEditor();
@@ -1346,7 +1332,7 @@ function addStoreRow(){
     name:   (document.getElementById('st-n-'+i)?.value||'').trim() || s.name,
     manager:(document.getElementById('st-m-'+i)?.value||'').trim() || s.manager||'',
   }));
-  appStores.push({name:'',manager:''});
+  appStores.push({name:'',manager:'',bitrixId:0});
   renderStoresEditor();
   buildStoreSelect();
 }
@@ -1355,8 +1341,9 @@ async function saveStoresOnly() {
   const apiUrl = localStorage.getItem('fbsm_api_url');
   if (!apiUrl) { showToast('Нет подключения', 'error'); return; }
   const updated = appStores.map((s,i) => ({
-    name:   (document.getElementById('st-n-'+i)?.value||'').trim()||s.name,
-    manager:(document.getElementById('st-m-'+i)?.value||'').trim()||'',
+    name:     (document.getElementById('st-n-'+i)?.value||'').trim()||s.name,
+    manager:  (document.getElementById('st-m-'+i)?.value||'').trim()||'',
+    bitrixId: parseInt(document.getElementById('st-b-'+i)?.value)||0,
   })).filter(s => s.name);
   try {
     const resp = await fetch(apiUrl, { method:'POST', body: JSON.stringify({
@@ -1377,8 +1364,9 @@ async function saveSettingsToSheets(){
   const apiUrl=localStorage.getItem('fbsm_api_url');
   if(!apiUrl){showToast('Нет подключения','error');return;}
   const updated=appStores.map((s,i)=>({
-    name:   (document.getElementById('st-n-'+i)?.value||'').trim()||s.name,
-    manager:(document.getElementById('st-m-'+i)?.value||'').trim()||s.manager||'',
+    name:     (document.getElementById('st-n-'+i)?.value||'').trim()||s.name,
+    manager:  (document.getElementById('st-m-'+i)?.value||'').trim()||s.manager||'',
+    bitrixId: parseInt(document.getElementById('st-b-'+i)?.value)||s.bitrixId||0,
   })).filter(s=>s.name);
   // Обновить appStores сразу чтобы collectPlans использовал актуальные имена
   appStores = updated;
