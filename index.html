@@ -890,6 +890,10 @@ function calcMetrics() {
   mp.style.color = mPct>=100?'var(--green)':mPct>=70?'var(--orange)':mPct>0?'var(--red)':'var(--blue)';
   document.getElementById('m-avg').textContent  = avg ?avg.toLocaleString('ru') :'—';
   document.getElementById('m-conv').textContent = conv?`${conv}%`:'—';
+  const items = parseInt(document.getElementById('items-sold')?.value)||0;
+  const upt   = chks>0 && items>0 ? (items/chks).toFixed(1) : 0;
+  document.getElementById('m-items').textContent = items ? items.toLocaleString('ru') : '—';
+  document.getElementById('m-upt').textContent   = upt   ? upt : '—';
 
   if (monthPlan) {
     const color = mPct>=100?'var(--green)':mPct>=70?'var(--orange)':'var(--red)';
