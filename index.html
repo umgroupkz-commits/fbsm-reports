@@ -1005,6 +1005,19 @@ function toggleItem(id){
 async function submitReport() {
   const idx=document.getElementById('store').value, date=document.getElementById('report-date').value;
   const rev=parseFloat(document.getElementById('revenue').value)||0;
+
+  // Валидация сотрудников
+  if(staffCount===0){
+    showToast('⚠️ Укажите количество сотрудников на смене','error');
+    return;
+  }
+  // Валидация цифр дня при наличии выручки
+  if(rev>0){
+    if(!parseInt(document.getElementById('checks').value)){showToast('⚠️ Укажите количество чеков','error');document.getElementById('checks').focus();return;}
+    if(!parseInt(document.getElementById('items-sold').value)){showToast('⚠️ Укажите продано единиц товара','error');document.getElementById('items-sold').focus();return;}
+    if(!parseInt(document.getElementById('visitors').value)){showToast('⚠️ Укажите количество посетителей','error');document.getElementById('visitors').focus();return;}
+  }
+
   if(!idx){showToast('Выберите магазин','error');return;}
   if(!date){showToast('Укажите дату','error');return;}
   if(!rev){showToast('Введите выручку за день','error');return;}
