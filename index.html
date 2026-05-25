@@ -1020,8 +1020,6 @@ async function submitReport() {
 
   if(!idx){showToast('Выберите магазин','error');return;}
   if(!date){showToast('Укажите дату','error');return;}
-  if(!rev){showToast('Введите выручку за день','error');return;}
-
   const store=appStores[parseInt(idx)];
   const chks=parseInt(document.getElementById('checks').value)||0;
   const vis=parseInt(document.getElementById('visitors').value)||0;
