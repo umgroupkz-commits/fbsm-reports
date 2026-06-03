@@ -581,6 +581,33 @@ let settingsUnlocked = false;
 // ════════════════════════════════════════════════════════
 // INIT — загрузка при старте
 // ════════════════════════════════════════════════════════
+function applyUrlParams() {
+  // Read ?store=...&manager=...&auto=1 from URL
+  const params = new URLSearchParams(window.location.search);
+  const storeParam   = params.get('store');
+  const managerParam = params.get('manager');
+  const auto         = params.get('auto');
+  if (!storeParam || !auto) return;
+
+  // Find store index by name
+  const sel = document.getElementById('store');
+  for (let i = 0; i < appStores.length; i++) {
+    if (appStores[i].name === storeParam) {
+      sel.value = String(i);
+      onStoreChange();
+      // Override manager name if provided
+      if (managerParam) {
+        const mField = document.getElementById('manager');
+        if (mField) mField.value = managerParam;
+      }
+      // Store selected successfully - manager is pre-authenticated from ЗП program
+      break;
+    }
+  }
+  // Clean URL to avoid re-applying on refresh
+  window.history.replaceState({}, '', window.location.pathname);
+}
+
 async function init() {
   const now = new Date();
   document.getElementById('topbar-date').textContent =
@@ -648,6 +675,8 @@ async function loadSettingsFromSheets(silent = false) {
   localStorage.setItem('fbsm_pin_cache', appPin);
 
   buildStoreSelect();
+  // Auto-select store from URL params (when opened from ЗП program)
+  applyUrlParams();
   // Перерисовать редактор настроек если открыт
   if (settingsUnlocked) {
     renderStoresEditor();
